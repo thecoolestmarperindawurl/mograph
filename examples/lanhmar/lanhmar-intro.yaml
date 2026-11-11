@@ -1,0 +1,22 @@
+# Giới thiệu website lanhmar.id.vn — nội dung chỉ lấy từ brand guideline LANHMAR (mục [Xác thực]).
+meta: {size: "9:16", style: desk, theme: lanhmar, bg: glow, marquee: "LAN ANH ★ PORTFOLIO ★ LANHMAR ★ DIGITAL MARKETER ★", cursor: Bạn, max: 30}
+scenes:
+  - hook: "Xin chào, mình là *Lan Anh*"
+    kicker: Digital Marketer
+    sub: LAN ANH + MARketing = LANHMAR
+  - flow: [Đề bài, Cách làm, Kết quả]
+    kicker: Portfolio
+    title: Mỗi dự án kể theo *3 bước*
+    win: lanhmar.id.vn
+  - check: ["Kết quả đo được|Số liệu thay cho tính từ", "Song ngữ|Việt trước, Anh sau", "Nút bấm rõ ràng|Xem dự án · Liên hệ với mình"]
+    kicker: Trên website
+    title: Bạn sẽ thấy gì?
+    win: lanhmar.id.vn
+  - recap: true
+  - ticket: "Ghé *lanhmar.id.vn*"
+    kicker: Portfolio của mình
+    name: LANHMAR
+    note: Lan Anh · Digital Marketer
+    rows: {Website: lanhmar.id.vn, Ngôn ngữ: Việt / Anh, Dự án: Đề bài → Cách làm → Kết quả}
+    pills: [Xem dự án, Liên hệ với mình]
+    code: LANHMAR ★ PORTFOLIO

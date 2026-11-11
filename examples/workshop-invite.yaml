@@ -1,0 +1,25 @@
+# Nội dung trong file này là ví dụ giả lập (tên, địa điểm không có thật).
+# style: desk — window cards on one canvas, camera whip-pans between them (16:9 event invite)
+meta: {size: "16:9", style: desk, theme: meadow, bg: dots, mascot: assets/bot.svg, cursor: Bạn, music: drive, max: 32}
+scenes:
+  - profile: Nguyễn An
+    role: Diễn giả
+    quote: Việc lặp lại cứ để máy làm
+    win: Diễn giả
+  - check: ["Thế nào là 1 “Skill” tốt?", "6 bước giải quyết vấn đề|(Nâng cao)"]
+    kicker: Nội dung workshop
+    title: Đi làm với AI
+    win: Ghi chú
+  - clock: 14h–18h
+    sub: "Thứ Bảy, 17/10"
+    win: Lịch
+  - recap: true
+  - pin: Quán cà phê Mẫu
+    sub: 12 Đường Mẫu, TP. Hồ Chí Minh
+  - ticket: "Đi làm với *AI*"
+    kicker: Vé mời · Workshop
+    name: Nguyễn An
+    note: "“Việc lặp lại cứ để máy làm”"
+    rows: {Thời gian: 14h–18h, Ngày: "Thứ Bảy, 17/10", Địa điểm: Quán cà phê Mẫu}
+    pills: ["Thứ Bảy, 17/10 · 14h–18h", Quán cà phê Mẫu]
+    code: WORKSHOP × AI

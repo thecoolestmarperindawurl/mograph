@@ -1,0 +1,7 @@
+{
+  "name": "mograph",
+  "owner": { "name": "mograph" },
+  "plugins": [
+    { "name": "mograph", "source": "./", "description": "Motion graphic videos from a compact YAML spec, rendered locally to MP4." }
+  ]
+}

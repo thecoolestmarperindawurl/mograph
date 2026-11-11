@@ -1,0 +1,27 @@
+# Every scene type, landscape. Numbers here are PLACEHOLDERS for testing the layout, not real data.
+meta: {size: "16:9", theme: paper, bg: glow, pace: 0.8}
+scenes:
+  - hook: "Mọi loại scene trong *mograph*"
+    kicker: Kitchen sink
+    sub: File này dùng để test layout, số liệu chỉ là minh hoạ
+  - bullets: [Viết spec ngắn, "Lint bằng text|không tốn token ảnh", Xem contact sheet, Render MP4]
+    title: Quy trình 4 bước
+  - flow: [Brief, Spec, Lint, Sheet, Render]
+    title: Pipeline
+  - loop: [Viết, Kiểm tra, Sửa, Xuất]
+    center: Editor
+  - stat: "1,200 frame"
+    label: Số frame của một video 40 giây ở 30fps
+    src: "Tính toán: 40 × 30"
+  - bars: {Scene A: 12, Scene B: 30, Scene C: 21}
+    title: Biểu đồ minh hoạ
+    unit: "s"
+    src: Số liệu giả lập để test layout
+  - term: ["$ mograph lint video.yaml", "OK 6 scenes · 31.4s", "$ mograph render video.yaml", "video → video.mp4"]
+    name: terminal
+  - quote: "Agent chỉ viết *spec*, engine lo phần chuyển động"
+    by: Nguyên tắc thiết kế của mograph
+  - raw: '<h2 class="title" data-in="up">Scene tuỳ biến bằng <em>raw</em></h2><p class="sub" data-in="up" data-at="0.4">Chỉ dùng khi không có type nào phù hợp</p>'
+    dur: 3
+  - cta: Hết phần demo
+    button: Bắt đầu

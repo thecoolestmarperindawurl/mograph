@@ -1,0 +1,55 @@
+# Giới thiệu Kho báu + Storage của lanhmar.id.vn. Nội dung lấy từ kho-bau.html, storage.html,
+# kho-bau-data.js, kho-data.js (đọc ngày 11/11/2026). Ảnh trong assets/ tải từ chính website.
+meta: {size: "9:16", style: desk, theme: lanhmar, marquee: "KHO BÁU ★ LANHMAR ★ DATA STORAGE ★ LANHMAR ★", pace: 0.6, music: upbeat, max: 58}
+scenes:
+  - hook: "Học và làm cùng *AI*"
+    kicker: Kho báu của mình
+    sub: Công cụ mình tự vibe-code và chia sẻ miễn phí
+    logo: assets/logo-lanhmar.png
+  - image: assets/shot-kho-bau.jpg
+    caption: Kho báu nằm ngay trên menu của lanhmar.id.vn
+    win: lanhmar.id.vn/kho-bau
+  - stat: "5"
+    kicker: Kho báu
+    label: công cụ đang mở, dùng miễn phí
+    src: "Nguồn: lanhmar.id.vn/kho-bau, 11/11/2026"
+  - image: assets/app-t-outbox.jpg
+    kicker: Plugin Claude Code
+    title: T-outbox
+    caption: Biến Claude Code thành công ty AI, xem cả đội làm việc trong văn phòng 3D
+    win: Kho báu
+  - image: assets/tool-pdf-editor.jpg
+    kicker: Công cụ online
+    title: LANHMAR PDF Editor
+    caption: Bấm vào dòng chữ trong PDF, gõ lại, giữ nguyên phông và bố cục
+    win: Kho báu
+  - image: assets/tool-ai-convert.jpg
+    kicker: Chạy ngay trên web
+    title: AI Convert
+    caption: Thả PDF, Word, Excel… nhận Markdown sạch cho AI đọc ít token hơn
+    win: Kho báu
+  - bullets: ["Drive Ebook Reader|Đọc PDF/EPUB vài trăm MB trên Drive, không tải về", "Course Recap|Video bài giảng thành trang recap từng slide"]
+    kicker: Và còn nữa
+    title: Hai công cụ cho *người học*
+    win: Kho báu
+  - image: assets/shot-storage.jpg
+    kicker: ★ Data Storage
+    title: "Kho *chia sẻ*"
+    caption: Tài nguyên mình đã dùng, xây dựng và phát triển
+    win: lanhmar.id.vn/storage
+  - loop: [Kho AI, Kho Design, Kho Edit, Kho Tool, Kho Knowledge, Kho Ứng dụng]
+    center: Storage
+    title: "*6 kho* tài nguyên"
+    win: lanhmar.id.vn/storage
+  - flow: ["Đăng ký|Họ tên và email", "Nhận mã + QR|Ủng hộ tuỳ tâm qua VietQR", "Lan Anh duyệt|Đối chiếu thủ công", "Vào xem|Quyền xem để học hỏi, tham khảo"]
+    title: Mở Storage thế nào?
+    win: lanhmar.id.vn/storage
+  - recap: true
+  - ticket: "Ghé *Kho báu*"
+    kicker: lanhmar.id.vn
+    name: Kho báu & Storage
+    note: Lan Anh · LANHMAR
+    rows: {Kho báu: 5 công cụ miễn phí, Storage: 6 kho tài nguyên, Website: lanhmar.id.vn/kho-bau}
+    pills: [Xem công cụ, Đăng ký truy cập Storage]
+    code: LANHMAR ★ KHO BÁU
+    logo: assets/logo-lanhmar.png

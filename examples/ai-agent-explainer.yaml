@@ -1,0 +1,25 @@
+meta: {size: "9:16", theme: midnight, bg: grid, brand: "@yourhandle", progress: true, music: chill, max: 45}
+scenes:
+  - hook: "AI Agent *không phải* chatbot"
+    kicker: AI Agent 101
+    sub: Chatbot trả lời. Agent hoàn thành công việc.
+  - compare: [Chatbot, AI Agent]
+    title: Khác nhau ở đâu?
+    rows:
+      - [Trả lời từng câu hỏi, Nhận mục tiêu rồi tự làm]
+      - [Chỉ sinh ra văn bản, "Dùng tool: search, code, API"]
+      - [Dừng sau mỗi lượt, Lặp đến khi xong việc]
+  - loop: [Suy nghĩ, Hành động, Quan sát]
+    center: Agent
+    title: Vòng lặp của *một agent*
+  - chat:
+      - "u: Tổng hợp 5 tin AI nổi bật tuần này"
+      - "t: web_search(\"AI news this week\")"
+      - "t: read_page(top_results)"
+      - "a: Xong. Đây là 5 tin kèm link nguồn để bạn kiểm chứng."
+    title: Ví dụ thực tế
+  - flow: ["Mục tiêu|Bạn giao việc, không giao từng bước", "Kế hoạch|Agent tự chia nhỏ nhiệm vụ", "Tool|Tìm kiếm, đọc file, gọi API", "Kiểm tra|Tự soát lỗi trước khi trả kết quả"]
+    title: 4 bước agent xử lý việc
+  - cta: Follow để học *AI Agent* mỗi ngày
+    button: Follow ngay
+    handle: "@yourhandle"

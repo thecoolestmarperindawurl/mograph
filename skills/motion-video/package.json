@@ -1,0 +1,9 @@
+{
+  "name": "mograph",
+  "version": "0.4.0",
+  "description": "Spec-driven motion graphic video engine for AI agents",
+  "type": "module",
+  "bin": { "mograph": "scripts/mograph.mjs" },
+  "license": "MIT",
+  "dependencies": { "playwright-core": "^1.48.0", "yaml": "^2.5.0" }
+}

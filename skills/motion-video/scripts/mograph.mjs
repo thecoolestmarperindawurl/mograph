@@ -20,7 +20,7 @@ const need = (names, hint) => {
   if (!triedInstall && !process.env.MOGRAPH_NO_INSTALL) {
     triedInstall = true;
     console.log('installing mograph dependencies (first run, ~10s)…');
-    const r = spawnSync(process.platform === 'win32' ? 'npm.cmd' : 'npm', ['install', '--no-audit', '--no-fund', '--loglevel=error'], { cwd: ROOT, stdio: 'inherit', shell: process.platform === 'win32' });
+    const r = spawnSync(process.platform === 'win32' ? 'npm.cmd' : 'npm', ['install', '--no-audit', '--no-fund', '--no-update-notifier', '--loglevel=error'], { cwd: ROOT, stdio: 'inherit', shell: process.platform === 'win32' });
     if (r.status === 0) for (const n of names) try { return require(n); } catch {}
   }
   if (hint === '') throw new Error('missing ' + names[0]);

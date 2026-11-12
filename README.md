@@ -45,22 +45,29 @@ Cơ chế giữ mức này: agent không sinh code (engine ~40 KB không đi qua
 
 Yêu cầu: Node 18+, Google Chrome, ffmpeg.
 
-**Cách 1 — plugin** (sau khi đẩy repo này lên GitHub):
+**Cách 1 — plugin (khuyến nghị).** Trong Claude Code, gõ hai lệnh:
+
+```
+/plugin marketplace add thecoolestmarperindawurl/mograph
+/plugin install mograph@mograph
+```
+
+Hoặc từ terminal:
 
 ```bash
-claude plugin marketplace add <owner>/mograph
+claude plugin marketplace add thecoolestmarperindawurl/mograph
 ```
 
 ```bash
 claude plugin install mograph@mograph
 ```
 
-**Cách 2 — skill đơn lẻ**: chép thư mục `skills/motion-video` vào `~/.claude/skills/`.
+Lần đầu làm video, agent sẽ tự chạy `npm install` trong thư mục skill (lệnh cài cụ thể được in ra nếu thiếu).
 
-Sau đó cài dependency một lần trong thư mục skill:
+**Cách 2 — skill đơn lẻ**: chép thư mục `skills/motion-video` vào `~/.claude/skills/`, rồi cài dependency một lần:
 
 ```bash
-npm install --prefix skills/motion-video
+npm install --prefix ~/.claude/skills/motion-video
 ```
 
 ## Dùng

@@ -3,5 +3,15 @@
   "version": "0.4.0",
   "description": "Motion graphic videos from a compact YAML spec, built for AI agents: template engine, beat-synced music, text-only lint, contact-sheet QA, MP4 render.",
   "license": "MIT",
-  "keywords": ["video", "motion-graphics", "marketing", "content"]
+  "keywords": [
+    "video",
+    "motion-graphics",
+    "marketing",
+    "content"
+  ],
+  "author": {
+    "name": "LANHMAR"
+  },
+  "homepage": "https://github.com/thecoolestmarperindawurl/mograph",
+  "repository": "https://github.com/thecoolestmarperindawurl/mograph"
 }

@@ -1,7 +1,14 @@
 {
   "name": "mograph",
-  "owner": { "name": "mograph" },
+  "description": "mograph: motion graphic videos from a YAML spec, with beat-synced music, rendered locally to MP4.",
+  "owner": {
+    "name": "LANHMAR"
+  },
   "plugins": [
-    { "name": "mograph", "source": "./", "description": "Motion graphic videos from a compact YAML spec, rendered locally to MP4." }
+    {
+      "name": "mograph",
+      "source": "./",
+      "description": "Motion graphic videos from a compact YAML spec, rendered locally to MP4."
+    }
   ]
 }

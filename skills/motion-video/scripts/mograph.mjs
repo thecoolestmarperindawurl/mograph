@@ -23,6 +23,7 @@ const need = (names, hint) => {
     const r = spawnSync(process.platform === 'win32' ? 'npm.cmd' : 'npm', ['install', '--no-audit', '--no-fund', '--loglevel=error'], { cwd: ROOT, stdio: 'inherit', shell: process.platform === 'win32' });
     if (r.status === 0) for (const n of names) try { return require(n); } catch {}
   }
+  if (hint === '') throw new Error('missing ' + names[0]);
   die(hint);
 };
 
@@ -148,7 +149,7 @@ async function doctor() {
   const hint = { darwin: { ff: 'brew install ffmpeg', chrome: 'install Google Chrome', tts: '`say` is built in; for better voices: pip3 install piper-tts' }, win32: { ff: 'winget install Gyan.FFmpeg  (or: npm i --prefix <skill dir> ffmpeg-static)', chrome: 'install Google Chrome or Microsoft Edge', tts: 'Windows speech is built in; for better voices: pip install piper-tts' }, linux: { ff: 'sudo apt install ffmpeg', chrome: 'install Google Chrome, or: npx playwright install chromium', tts: 'pip3 install piper-tts  (or: sudo apt install espeak-ng)' } }[os_] || {};
   const nv = +process.versions.node.split('.')[0];
   (nv >= 18 ? ok : bad).push(`node ${process.versions.node}${nv >= 18 ? '' : ' — need 18+'}`);
-  for (const d of ['yaml', 'playwright-core']) { try { require(d); ok.push(d); } catch { bad.push(`${d} missing — cd "${ROOT}" && npm install`); } }
+  for (const d of ['yaml', 'playwright-core']) { try { need([d], ''); ok.push(d); } catch { bad.push(`${d} missing — cd "${ROOT}" && npm install`); } }
   let ff = null; try { ff = process.env.MOGRAPH_FFMPEG || (spawnSync('ffmpeg', ['-version']).status === 0 ? 'ffmpeg' : require('ffmpeg-static')); } catch {}
   if (ff && spawnSync(ff, ['-version']).status === 0) ok.push('ffmpeg ' + (spawnSync(ff, ['-version']).stdout.toString().match(/version (\S+)/) || [])[1]); else bad.push('ffmpeg missing — ' + hint.ff);
   try { const pw = require('playwright-core'); let b = null; for (const o of process.env.MOGRAPH_CHROME ? [{ executablePath: process.env.MOGRAPH_CHROME }] : [{}, { channel: 'chrome' }, { channel: 'msedge' }]) { try { b = await pw.chromium.launch(o); break; } catch {} } if (b) { ok.push('browser ' + b.version()); await b.close(); } else bad.push('no Chrome/Edge/Chromium — ' + hint.chrome); } catch {}

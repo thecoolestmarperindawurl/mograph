@@ -25,7 +25,8 @@ Needs Node 18+, Google Chrome/Edge (or `MOGRAPH_CHROME`), ffmpeg. If anything fa
    Voiceover (optional): `voice: "narration"` on a scene → speech + on-screen captions; the scene stretches to fit the line and music
    ducks under it. Use the user's recording with `vo: file.wav` (keep `voice:` as the caption text). One or two short sentences per scene.
 6. **`mg lint <spec>`** (text). Fix every ERR/WARN, repeat until `OK`. Check the `♪` line: if confidence is LOW or it lists other possible tempos, tell the user and set `bpm` if they say the cuts feel off.
-   The `🎙` line names the voice engine; if it is espeak, tell the user it sounds robotic and offer `pip install piper-tts` or recorded `vo:` files.
+   The `🎙` line names the voice engine; if it is espeak (also the automatic fallback when a piper voice cannot be downloaded), keep going, then tell the user it sounds robotic and offer `pip install piper-tts` or recorded `vo:` files.
+   Over `max`: set `pace: 0.8`, trim clips, shorten voice lines, or drop a scene. Up to ~2s over is fine — say so instead of looping.
 7. **`mg sheet <spec>`** — ONE contact-sheet image of every scene; look once. After fixes re-check only what changed
    (`--scenes 3,5`). A `recap` frame looks empty in the sheet — that is its end state, not a bug. `sheet` and `render` re-run lint themselves.
    Then **`mg render <spec>`** → MP4 (`--draft` for a quick preview, `--size 16:9` for another ratio).
@@ -39,7 +40,7 @@ Do not read rendered frames or the video back; do not open engine source unless 
 |---|---|---|
 | Opening line, section title | `hook` | word-by-word reveal |
 | A product / screenshot / photo | `image` (+ `title`, `kicker`, `caption`) | image dominates the card, slow zoom |
-| A product in action, a screen recording, b-roll | `clip` (`from`, `to`, `sound`) · `fill: true` for full-screen footage behind a title | real motion beats any animation |
+| A product in action, a screen recording, b-roll | `clip` (`from`, `to`, `sound`) · `fill: true` for full-screen footage behind a title | real motion beats any animation. The scene lasts as long as the clip (whole file, max 12s) — always trim to 3–6s with `from`/`to` |
 | One number | `stat` (+ `src`) | count-up |
 | Comparing numbers | `bars` (+ `src`) | bars grow |
 | Steps in order | `flow` | nodes + arrows, sequential glow |

@@ -28,18 +28,19 @@ scenes:
 
 ## Token: số đo thật
 
-Một agent mới (Claude Sonnet, không có ngữ cảnh trước) được giao làm video 33 giây, 6 scene, có nhạc, từ 4 file ảnh — ngày 11/11/2026:
+Mỗi lần đo: một agent mới (Claude Sonnet, không có ngữ cảnh trước) tự làm từ đầu đến khi ra MP4, kịch bản đã duyệt sẵn.
 
-| Chỉ số | Giá trị |
-|---|---|
-| Lượt gọi model | 7 |
-| Lần xem ảnh | 1 (contact sheet) |
-| Context tăng thêm do quy trình (SKILL.md + spec + kết quả lệnh + 1 ảnh) | khoảng 10.300 token |
-| Token output | 2.101 |
-| Context nền của chính agent (system prompt + định nghĩa tool, không thuộc plugin) | 55.409 token |
-| Thời gian | 97 giây |
+| Chỉ số | v0.4 — 11/11/2026 | v0.5 — 12/11/2026 |
+|---|---|---|
+| Video | 33 giây, 6 scene, nhạc | 41 giây, 7 scene, nhạc + footage + 6 câu lồng tiếng + phụ đề |
+| Lượt gọi model | 7 | 8 |
+| Lần xem ảnh | 1 (contact sheet) | 1 (contact sheet) |
+| Context tăng thêm do quy trình (SKILL.md + spec + kết quả lệnh + 1 ảnh) | khoảng 10.300 token | khoảng 12.700 token |
+| Token output | 2.101 | 2.664 |
+| Context nền của chính agent (không thuộc plugin) | 55.409 token | 55.692 token |
+| Thời gian | 97 giây | 95 giây |
 
-Context nền phụ thuộc môi trường của từng người (số MCP/tool đang bật), không phụ thuộc plugin. Đây là một lần đo; kịch bản đã duyệt sẵn nên không có vòng sửa.
+Context nền phụ thuộc môi trường của từng người (số MCP/tool đang bật), không phụ thuộc plugin. Mỗi cột là một lần đo; kịch bản đã duyệt sẵn nên không có vòng sửa với người dùng.
 
 Cơ chế giữ mức này: agent không sinh code (engine ~40 KB không đi qua context), `lint` và `assets` chỉ trả text,
 `sheet` gom mọi scene vào 1 ảnh, tài liệu chi tiết chỉ nạp khi gọi `catalog <type>`, thời lượng và khớp beat do engine tự tính.

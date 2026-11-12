@@ -240,3 +240,40 @@ code,.term{font-family:"JetBrains Mono","SF Mono","DejaVu Sans Mono",ui-monospac
 .th-lanhmar .cursor span{background:#FFD8C2;color:#A6380D}
 .th-lanhmar .blob{opacity:.16}
 .th-lanhmar .wbar span{font-weight:700;color:#55507A}
+
+/* footage */
+.frame.clip img{width:100%;max-height:22em;object-fit:cover}
+.frame.clip.fill{position:absolute;inset:0;align-self:stretch;justify-self:stretch;max-width:none;border:0;border-radius:0;box-shadow:none;z-index:0}
+.frame.clip.fill img{width:100%;height:100%;max-height:none;object-fit:cover}
+.frame.clip.fill::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(10,8,30,.55),rgba(10,8,30,.78))}
+.frame.clip.fill img{filter:blur(.08em) saturate(1.1)}
+.mg-scene:has(.frame.fill) .mg-c{z-index:1}
+.mg-scene:has(.frame.fill) .mg-i{--head:#fff;--fg:#fff;--mut:rgba(255,255,255,.85);color:#fff;text-shadow:0 .08em .5em rgba(0,0,0,.4)}
+
+/* captions */
+.mg-cap{position:absolute;left:var(--px);right:var(--px);bottom:calc(var(--pb)*.62);z-index:20;display:flex;justify-content:center;opacity:0;pointer-events:none}
+.mg-cap span{max-width:24em;padding:.42em .8em;border-radius:.6em;text-align:center;font-size:1.02em;font-weight:700;line-height:1.35;color:#fff;background:rgba(10,10,20,.72)}
+.mg-cap i{font-style:normal;opacity:.55}
+.mg-cap i.on{opacity:1}
+.mg-cap i.on:has(+ i:not(.on)),.mg-cap i.on:last-child{color:var(--cap,#ffd166)}
+.land .mg-cap span{font-size:.92em}
+
+/* wipe transition */
+.mg-wipe{position:absolute;inset:0;z-index:15;display:none;pointer-events:none}
+.mg-wipe i,.mg-wipe b{position:absolute;top:0;bottom:0;width:100%}
+.mg-wipe i{left:0;background:var(--ac)}
+.mg-wipe b{left:-14%;width:14%;background:var(--ac2)}
+
+/* landscape: put media / diagrams beside the text instead of under it */
+.land .t-image .mg-i.sp,.land .t-clip .mg-i.sp,.land .t-loop .mg-i.sp{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.5fr);grid-template-rows:1fr repeat(4,auto) 1fr;column-gap:1.8em;row-gap:.8em;align-items:center}
+.land .t-loop .mg-i.sp{grid-template-columns:minmax(0,1fr) minmax(0,1.2fr)}
+.land .t-image .mg-i.sp>*,.land .t-clip .mg-i.sp>*,.land .t-loop .mg-i.sp>*{grid-column:1}
+.land .t-image .mg-i.sp>:nth-child(1),.land .t-clip .mg-i.sp>:nth-child(1),.land .t-loop .mg-i.sp>:nth-child(1){grid-row:2}
+.land .t-image .mg-i.sp>:nth-child(2),.land .t-clip .mg-i.sp>:nth-child(2),.land .t-loop .mg-i.sp>:nth-child(2){grid-row:3}
+.land .t-image .mg-i.sp>:nth-child(3),.land .t-clip .mg-i.sp>:nth-child(3),.land .t-loop .mg-i.sp>:nth-child(3){grid-row:4}
+.land .t-image .mg-i.sp>:nth-child(4),.land .t-clip .mg-i.sp>:nth-child(4),.land .t-loop .mg-i.sp>:nth-child(4){grid-row:5}
+.land .t-image .mg-i.sp>.frame,.land .t-clip .mg-i.sp>.frame,.land .t-loop .mg-i.sp>.loop{grid-column:2;grid-row:1 / -1;margin:0;justify-self:center}
+.land .t-image .mg-i.sp>.frame,.land .t-clip .mg-i.sp>.frame{width:100%}
+.land .t-image .frame img,.land .t-clip .frame img{width:100%;max-height:16em;object-fit:cover}
+.land .window{max-width:44em}
+.land .window .t-image .frame img,.land .window .t-clip .frame img{max-height:13em}

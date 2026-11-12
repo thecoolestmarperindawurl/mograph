@@ -17,6 +17,7 @@
     back: p => 1 + 2.70158 * Math.pow(p - 1, 3) + 1.70158 * Math.pow(p - 1, 2),
   };
   let U = 40;
+  let PEND = [];
 
   class TL {
     constructor() { this.tw = []; this.fns = []; this.lives = []; this.sorted = false; }
@@ -109,6 +110,7 @@
         }, 'out5');
         return at + dur;
       },
+      pending(img) { PEND.push(img.decode().catch(() => {})); },
       logo(s, parent) { if (!s.logo) return 0; const im = c.h('img', 'logo', null, parent); im.src = s.logo; c.up(im, 0, 0.5, 0.4); return 0.15; },
       head(s, t = 0) {
         if (s.kicker) { c.up(c.h('div', 'kicker', rich(s.kicker)), t, 0.5, 0.4); t += 0.15; }
@@ -271,6 +273,24 @@
       c.src(s, t + 0.6);
       return t + (ent.length - 1) * 0.22 + 1.05;
     },
+    clip(s, c) {
+      const fill = !!s.fill;
+      if (fill) c.el.classList.add('center');
+      let t = fill ? 0 : c.head(s);
+      const host = fill ? c.el.closest('.mg-scene') : c.el;
+      const fr = c.h('div', 'frame clip' + (fill ? ' fill' : ''), '<img>', host);
+      if (fill) host.insertBefore(fr, host.firstChild);
+      const img = fr.firstChild, F = s._frames || [], fps = s._fps || 30;
+      c.tl.add(fr, fill ? { opacity: [0, 1] } : { opacity: [0, 1], scale: [0.94, 1], y: [0.6, 0] }, t, fill ? 0.4 : 0.7, 'out5');
+      if (F.length) { img.src = F[0]; c.tl.live(lt => { const k = Math.max(0, Math.min(F.length - 1, Math.floor((lt - t) * fps))); if (img._k !== k) { img._k = k; img.src = F[k]; c.pending(img); } }); }
+      s._clipAt = t;
+      if (fill) {
+        if (s.kicker) { c.up(c.h('div', 'kicker', rich(s.kicker)), 0.3, 0.5, 0.4); t = 0.45; }
+        if (s.title) t = c.words(c.h('h1', 'big sm'), s.title, Math.max(t, 0.3), 0.07);
+      }
+      if (s.caption) c.up(c.h('p', 'sub', rich(s.caption)), t + 0.3);
+      return { end: t + 0.9, read: 0.3, min: (s._clipAt || 0) + (s._len || 0) + 0.25 };
+    },
     image(s, c) {
       let t = c.head(s);
       const fr = c.h('div', 'frame', `<img src="${esc(s.image)}">`);
@@ -389,18 +409,21 @@
     },
   };
 
-  const countWords = (v, k) => (['dur', 'image', 'raw', 'name', 'hi', 'unit'].includes(k) ? 0
+  const countWords = (v, k) => (['dur', 'image', 'raw', 'name', 'hi', 'unit', 'voice', 'vo', 'clip', 'tr', 'win', 'logo'].includes(k) || k[0] === '_' ? 0
     : typeof v === 'string' ? v.split(/\s+/).filter(Boolean).length
     : v && typeof v === 'object' ? Object.entries(v).reduce((n, [kk, vv]) => n + countWords(vv, Array.isArray(v) ? '' : kk) + (Array.isArray(v) ? 0 : 0), 0) : 0);
 
   let S = null;
-  const WIN = new Set(['bullets', 'flow', 'loop', 'compare', 'chat', 'bars', 'image', 'profile', 'check', 'clock']);
+  const WIN = new Set(['bullets', 'flow', 'loop', 'compare', 'chat', 'bars', 'image', 'clip', 'profile', 'check', 'clock']);
   const LEAD = 0.55, lerp = (a, b, p) => a + (b - a) * p;
   async function init(spec) {
-    const m = spec.meta, W = m.w, H = m.h, portrait = H > W * 1.1, desk = m.style === 'desk', SP = W * 1.14;
+    const m = spec.meta, W = m.w, H = m.h, portrait = H > W * 1.1, desk = m.style === 'desk', SP = W * 1.14, SPY = H * 1.12;
+    const lay = m.layout || 'row', gc = Math.ceil(Math.sqrt(spec.scenes.length));
+    const place = i => lay === 'column' ? [0, i * SPY] : lay === 'zigzag' ? [i * SP * 0.8, (i % 2) * SPY * 0.75]
+      : lay === 'grid' ? [((Math.floor(i / gc) % 2) ? gc - 1 - (i % gc) : i % gc) * SP, Math.floor(i / gc) * SPY] : [i * SP, 0];
     U = portrait ? W / 21 : Math.min(W, H) / 23;
     const stage = document.getElementById('stage');
-    stage.innerHTML = ''; stage.className = '';
+    stage.innerHTML = ''; stage.className = portrait ? 'port' : H < W * 0.9 ? 'land' : 'square'; PEND = [];
     stage.style.cssText = `width:${W}px;height:${H}px;font-size:${U}px`;
     const t0 = typeof m.theme === 'object' && m.theme ? { ...THEMES[m.theme.base || 'midnight'], ...m.theme } : THEMES[m.theme] || THEMES.midnight;
     const th = { win: t0.card, ink: t0.fg, inkmut: t0.mut, cline: t0.line, chip: `color-mix(in srgb,${t0.fg} 7%,transparent)`, wac: t0.ac, wac2: t0.ac2, head: t0.fg, kick: t0.ac2, band: t0.ac, ...t0 };
@@ -423,7 +446,7 @@
       const view = document.createElement('div'); view.className = 'mg-view';
       world = document.createElement('div'); world.className = 'mg-world';
       view.appendChild(world); stage.appendChild(view);
-      stage.insertAdjacentHTML('beforeend', '<svg width="0" height="0" style="position:absolute"><filter id="mgblur" x="-5%" width="110%" y="0" height="100%"><feGaussianBlur stdDeviation="0 0"/></filter></svg>');
+      stage.insertAdjacentHTML('beforeend', '<svg width="0" height="0" style="position:absolute"><filter id="mgblur" x="-5%" width="110%" y="-5%" height="110%"><feGaussianBlur stdDeviation="0 0"/></filter></svg>');
       blur = { view, fe: stage.querySelector('feGaussianBlur') };
     }
 
@@ -432,27 +455,35 @@
       const cbox = document.createElement('div'); cbox.className = 'mg-c';
       const inner = document.createElement('div'); inner.className = 'mg-i';
       let slot = null, frame = null;
-      if (desk) { slot = document.createElement('div'); slot.className = 'mg-slot'; slot.style.cssText = `left:${i * SP}px;width:${W}px;height:${H}px`; world.appendChild(slot); slot.appendChild(el); }
+      if (desk) { const [px, py] = place(i, spec.scenes.length); slot = document.createElement('div'); slot.className = 'mg-slot'; slot.style.cssText = `left:${px}px;top:${py}px;width:${W}px;height:${H}px`; slot._p = [px, py]; world.appendChild(slot); slot.appendChild(el); }
       else stage.appendChild(el);
-      if (desk && WIN.has(s.type)) {
+      if (desk && WIN.has(s.type) && !s.fill) {
         frame = document.createElement('div'); frame.className = 'window paper';
         frame.innerHTML = `<div class="wbar"><i></i><i></i><i></i><span>${rich(s.win || '')}</span></div><div class="wbody"></div>`;
         frame.lastChild.appendChild(inner); cbox.appendChild(frame);
       } else cbox.appendChild(inner);
       el.appendChild(cbox);
       const tl = new TL(), r = B[s.type](s, ctx(inner, tl, portrait, m));
+      if (!portrait && ['image', 'clip', 'loop'].includes(s.type) && !s.fill && inner.querySelector(':scope>.title,:scope>.kicker,:scope>.sub')) inner.classList.add('sp');
       const end = typeof r === 'number' ? r : r.end;
       const words = countWords(s, '');
       const read = (typeof r === 'object' && r.read) || Math.min(3.2, Math.max(1, words * 0.2 - end * 0.5));
       const last = i === spec.scenes.length - 1, lead = desk && i ? LEAD : 0;
-      const auto = (r.dur || Math.min(10, Math.max(2.4, end + read * (m.pace || 1) + (last ? 0.9 : 0.4)))) + lead;
-      return { el, cbox, inner, slot, frame, tl, type: s.type, end, lead, dur: s.dur != null ? +s.dur : Math.round(auto * 10) / 10, fixed: s.dur != null, last };
+      let auto = (r.dur || Math.min(10, Math.max(2.4, end + read * (m.pace || 1) + (last ? 0.9 : 0.4)))) + lead;
+      if (r.min) auto = Math.max(auto, r.min + lead);
+      const vo = s._vo || null;
+      if (vo) auto = Math.max(auto, lead + vo.at + vo.dur + (last ? 0.9 : 0.35));
+      return { el, cbox, inner, slot, frame, tl, type: s.type, end, lead, vo, tr: s.tr || m.transition || 'fade', dur: s.dur != null ? +s.dur : Math.round(auto * 10) / 10, fixed: s.dur != null, last };
     });
 
     if (desk && m.mascot) { mascot = document.createElement('img'); mascot.className = 'mg-mascot'; mascot.src = m.mascot; world.appendChild(mascot); }
     if (m.brand) { const b = document.createElement('div'); b.className = 'mg-brand'; b.innerHTML = rich(m.brand); stage.appendChild(b); }
     let marq = null;
     if (m.marquee) { marq = document.createElement('div'); marq.className = 'mg-marq'; marq.innerHTML = '<div>' + `<span>${rich(m.marquee)}</span>`.repeat(12) + '</div>'; stage.appendChild(marq); }
+    let cap = null;
+    if (m.captions !== false && scenes.some(x => x.vo && x.vo.cues && x.vo.cues.length)) { cap = document.createElement('div'); cap.className = 'mg-cap'; stage.appendChild(cap); }
+    let wipe = null;
+    if (!desk && scenes.some(x => x.tr === 'wipe')) { wipe = document.createElement('div'); wipe.className = 'mg-wipe'; wipe.innerHTML = '<i></i><b></b>'; stage.appendChild(wipe); }
     let prog = null;
     if (m.progress) { prog = document.createElement('div'); prog.className = 'mg-prog'; prog.innerHTML = '<i></i>'; stage.appendChild(prog); }
 
@@ -473,30 +504,43 @@
         const nx = scenes[i + 1], kk = desk && nx ? (nx.type === 'recap' ? 0.55 : 0.34) : 0, g = bt.p * bt.n;
         sc.dur = Math.round((Math.ceil((start + sc.dur + kk - bt.o) / g - 1e-4) * g + bt.o - kk - start) * 1000) / 1000;
       }
-      if (!sc.last && !desk) sc.tl.add(sc.el, { opacity: [1, 0], y: [0, -0.7] }, sc.dur - 0.38, 0.38, 'in');
+      if (!desk) {
+        const pv = scenes[i - 1], tin = pv ? pv.tr : null, X = W / U;
+        if (tin === 'slide') sc.tl.add(sc.el, { x: [X * 0.55, 0], opacity: [0, 1] }, 0, 0.45, 'out5');
+        else if (tin === 'zoom') sc.tl.add(sc.el, { scale: [0.82, 1], opacity: [0, 1] }, 0, 0.45, 'out5');
+        else if (tin === 'blur') sc.tl.add(sc.el, { blur: [26, 0], opacity: [0, 1] }, 0, 0.45, 'out5');
+        if (!sc.last) {
+          const o = sc.tr, d = 0.38, a0 = sc.dur - d;
+          if (o === 'slide') sc.tl.add(sc.el, { x: [0, -X * 0.55], opacity: [1, 0] }, a0, d, 'in');
+          else if (o === 'zoom') sc.tl.add(sc.el, { scale: [1, 1.22], opacity: [1, 0] }, a0, d, 'in');
+          else if (o === 'blur') sc.tl.add(sc.el, { blur: [0, 26], opacity: [1, 0] }, a0, d, 'in');
+          else if (o !== 'wipe' && o !== 'cut') sc.tl.add(sc.el, { opacity: [1, 0], y: [0, -0.7] }, a0, d, 'in');
+        }
+      }
       sc.start = start; start += sc.dur;
-      return { i: i + 1, type: sc.type, start: +sc.start.toFixed(2), dur: sc.dur, need: +(sc.end + sc.lead + 0.8).toFixed(1), fit: k, overflow: sc.overflow, fixed: sc.fixed, imgErr: !!sc.el.querySelector('img[data-err]') };
+      return { i: i + 1, type: sc.type, start: +sc.start.toFixed(3), lead: sc.lead, clipAt: spec.scenes[i]._clipAt, voAt: sc.vo ? +(sc.start + sc.lead + sc.vo.at).toFixed(3) : null, dur: sc.dur, need: +(sc.end + sc.lead + 0.8).toFixed(1), fit: k, overflow: sc.overflow, fixed: sc.fixed, imgErr: !!sc.el.querySelector('img[data-err]') };
     });
 
     if (desk) {
       const sr = stage.getBoundingClientRect();
       scenes.forEach((sc, i) => {
         const r = (sc.frame || sc.inner).getBoundingClientRect();
-        sc.cam = sc.frame ? { x: r.left - sr.left + r.width / 2, y: r.top - sr.top + r.height / 2 - 0.5 * U, z: Math.max(1, Math.min(1.7, (0.8 * W) / r.width, (0.68 * H) / r.height)) } : { x: i * SP + W / 2, y: H / 2, z: 1 };
-        sc.perch = [r.left - sr.left + r.width * (sc.frame ? 0.12 : 0.5), r.top - sr.top - (sc.frame ? 0 : 0.3 * U)];
+        sc.cam = sc.frame ? { x: r.left - sr.left + r.width / 2, y: r.top - sr.top + r.height / 2 - 0.5 * U, z: Math.max(1, Math.min(1.7, (0.8 * W) / r.width, (0.68 * H) / r.height)) } : { x: sc.slot._p[0] + W / 2, y: sc.slot._p[1] + H / 2, z: 1 };
+        sc.perch = [r.left - sr.left + r.width * (sc.frame ? 0.12 : 0.5), r.top - sr.top - (sc.frame ? 0 : 1.1 * U)];
       });
       scenes.forEach((sc, i) => {
         if (sc.type !== 'recap') return;
         const wins = scenes.slice(0, i).filter(x => x.frame && !x.gone);
         if (!wins.length) { sc.cam = scenes[Math.max(0, i - 1)].cam; sc.perch = scenes[Math.max(0, i - 1)].perch; return; }
-        const xs = wins.map(x => x.cam.x), lo = Math.min(...xs), hi = Math.max(...xs), mid = (lo + hi) / 2;
-        sc.cam = { x: mid, y: H / 2, z: Math.min(1, W / (hi - lo + W)) * 0.94 };
-        sc.perch = [mid, H * 0.32]; sc.move = 1.1; sc.recap = true;
-        wins.forEach((x, k) => { x.gone = true; sc.tl.add(x.slot, { x: [0, (mid - x.cam.x) / U], scale: [1, 0.5], opacity: [1, 0] }, 0.75 + k * 0.06, 0.5, 'in'); });
+        const xs = wins.map(x => x.cam.x), ys = wins.map(x => x.cam.y), lo = Math.min(...xs), hi = Math.max(...xs), mid = (lo + hi) / 2;
+        const ylo = Math.min(...ys), yhi = Math.max(...ys), my = (ylo + yhi) / 2;
+        sc.cam = { x: mid, y: my, z: Math.min(1, W / (hi - lo + W), H / (yhi - ylo + H)) * 0.94 };
+        sc.perch = [mid, my - H * 0.18]; sc.move = 1.1; sc.recap = true;
+        wins.forEach((x, k) => { x.gone = true; sc.tl.add(x.slot, { x: [0, (mid - x.cam.x) / U], y: [0, (my - x.cam.y) / U], scale: [1, 0.5], opacity: [1, 0] }, 0.75 + k * 0.06, 0.5, 'in'); });
       });
     }
-    S = { scenes, total: start, blobs, prog, W, H, desk, world, blur, mascot, marq, mw: marq ? marq.querySelector('span').getBoundingClientRect().width : 0, beat: bt && m.pulse !== false ? bt : null, bg };
-    seek(0);
+    S = { scenes, total: start, blobs, prog, W, H, desk, world, blur, mascot, marq, cap, wipe, mw: marq ? marq.querySelector('span').getBoundingClientRect().width : 0, beat: bt && m.pulse !== false ? bt : null, bg };
+    await seek(0);
     return { total: +start.toFixed(2), w: W, h: H, fps: m.fps, scenes: info, beat: bt };
   }
 
@@ -513,9 +557,9 @@
       const x = lerp(a.cam.x, sc.cam.x, p), y = lerp(a.cam.y, sc.cam.y, p);
       const z = lerp(ai ? holdZ(a, a.dur) : sc.cam.z, holdZ(sc, lt), p) * (1 - 0.1 * Math.sin(Math.PI * p)) * (1 + 0.014 * pulse);
       S.world.style.transform = `translate(${W / 2 - x * z}px,${H / 2 - y * z}px) scale(${z})`;
-      const bl = Math.sin(Math.PI * q) * (Math.abs(sc.cam.x - a.cam.x) / W) * 0.55 * U;
-      S.blur.fe.setAttribute('stdDeviation', `${bl.toFixed(1)} 0`);
-      S.blur.view.style.filter = bl > 0.6 ? 'url(#mgblur)' : 'none';
+      const bw = Math.sin(Math.PI * q) * 0.55 * U, bx = bw * Math.abs(sc.cam.x - a.cam.x) / W, by = bw * Math.abs(sc.cam.y - a.cam.y) / H;
+      S.blur.fe.setAttribute('stdDeviation', `${bx.toFixed(1)} ${by.toFixed(1)}`);
+      S.blur.view.style.filter = bx + by > 0.6 ? 'url(#mgblur)' : 'none';
       if (S.mascot) {
         const hop = Math.sin(Math.PI * p) * (ai ? 3 * U : 0) + Math.abs(Math.sin(t * 3.4)) * 0.14 * U;
         S.mascot.style.transform = `translate(${lerp(a.perch[0], sc.perch[0], p)}px,${lerp(a.perch[1], sc.perch[1], p) - hop}px) translate(-50%,-97%)`;
@@ -530,6 +574,31 @@
     if (S.beat && !S.desk) S.bg.style.transform = `scale(${1 + 0.035 * pulse})`;
     if (S.marq) S.marq.firstChild.style.transform = `translateX(${-((t * 2.4 * U) % S.mw)}px)`;
     if (prog) prog.firstChild.style.width = Math.min(100, (t / total) * 100) + '%';
+    if (S.cap) captions(t);
+    if (S.wipe) {
+      let v = null;
+      for (let i = 0; i < scenes.length - 1; i++) { const sc = scenes[i], T = sc.start + sc.dur; if (sc.tr === 'wipe' && Math.abs(t - T) < 0.36) v = t < T ? -100 + 100 * ease.inout((t - T + 0.36) / 0.36) : 100 * ease.inout((t - T) / 0.36); }
+      S.wipe.style.display = v == null ? 'none' : 'block';
+      if (v != null) S.wipe.style.transform = `translateX(${v.toFixed(2)}%)`;
+    }
+    const pend = PEND; PEND = [];
+    return pend.length ? Promise.all(pend) : undefined;
+  }
+
+  // captions: phrase cues from the voiceover, current word highlighted (word times are spread by length inside each cue)
+  function captions(t) {
+    const sc = S.scenes.find(x => x.vo && t >= x.start && t < x.start + x.dur);
+    let cue = null, lt = 0;
+    if (sc) { lt = t - sc.start - sc.lead - sc.vo.at; cue = sc.vo.cues.find(c => lt >= c.a - 0.05 && lt < c.b + 0.25); }
+    if (!cue) { S.cap.style.opacity = 0; return; }
+    if (S.cap._c !== cue) {
+      S.cap._c = cue;
+      const ws = cue.text.split(/\s+/).filter(Boolean), L = ws.reduce((n, w) => n + w.length + 1, 0);
+      let acc = 0; cue.w = ws.map(w => { const a = cue.a + (cue.b - cue.a) * (acc / L); acc += w.length + 1; return a; });
+      S.cap.innerHTML = '<span>' + ws.map(w => `<i>${esc(w)}</i>`).join(' ') + '</span>';
+    }
+    S.cap.style.opacity = Math.min(1, (lt - cue.a + 0.05) / 0.12, (cue.b + 0.25 - lt) / 0.12);
+    [...S.cap.firstChild.children].forEach((e, k) => e.classList.toggle('on', lt >= cue.w[k]));
   }
 
   window.__mg = { init, seek, themes: Object.keys(THEMES) };

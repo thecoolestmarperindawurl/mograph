@@ -1,7 +1,9 @@
 # mograph
 
+[![ci](https://github.com/thecoolestmarperindawurl/mograph/actions/workflows/ci.yml/badge.svg)](https://github.com/thecoolestmarperindawurl/mograph/actions/workflows/ci.yml)
+
 Skill + plugin cho Claude Code: dựng video motion graphic từ một file **spec YAML ngắn**. Agent chỉ viết nội dung;
-engine lo layout, chuyển động, timing và xuất MP4 ngay trên máy editor.
+engine lo layout, chuyển động, timing, nhạc khớp beat, lồng tiếng + phụ đề, footage và xuất MP4 ngay trên máy editor.
 
 ```yaml
 meta: {size: "9:16", theme: midnight, bg: grid}
@@ -15,11 +17,12 @@ scenes:
 ## Quy trình 7 bước (agent tự làm theo SKILL.md)
 
 1. Chốt kịch bản trong chat: hook → các ý → CTA. Số liệu phải có nguồn.
-2. Chọn ảnh: `assets <thư mục>` liệt kê kích thước và gợi ý cách dùng từng file, chỉ bằng text.
+2. Chọn ảnh/video: `assets <thư mục>` liệt kê kích thước và gợi ý cách dùng từng file, chỉ bằng text.
 3. Chọn motion: bảng "nội dung nào → loại scene nào" trong SKILL.md, cộng style `slides` hoặc `desk`.
 4. Viết spec YAML.
-5. Thêm nhạc: `music: upbeat | chill | drive` (nhạc gốc do engine tự tổng hợp, dùng tự do) hoặc `audio: file-của-bạn` (tự dò BPM).
-   Điểm cắt cảnh và cú lia camera tự bám vào lưới beat.
+5. Thêm âm thanh: `music: upbeat | chill | cinematic | hiphop | drive` (nhạc gốc do engine tự tổng hợp, dùng tự do) hoặc
+   `audio: file-của-bạn` (tự dò BPM). Điểm cắt cảnh và cú lia camera tự bám vào lưới beat.
+   Lồng tiếng: `voice: "lời đọc"` trên từng scene → giọng đọc + phụ đề tự chạy theo; nhạc tự hạ khi có giọng. Có file thu âm thì thêm `vo: file.wav`.
 6. `lint` (text) cho đến khi `OK`.
 7. `sheet` (1 ảnh) để soát hình, rồi `render` ra MP4.
 
@@ -43,7 +46,9 @@ Cơ chế giữ mức này: agent không sinh code (engine ~40 KB không đi qua
 
 ## Cài đặt
 
-Yêu cầu: Node 18+, Google Chrome, ffmpeg.
+Yêu cầu: Node 18+, Google Chrome hoặc Edge, ffmpeg. Chạy `node skills/motion-video/scripts/mograph.mjs doctor` để kiểm tra; lệnh này in ra cách cài cho đúng hệ điều hành.
+Lồng tiếng cần thêm một trình đọc: `pip install piper-tts` (giọng tự nhiên, mọi hệ điều hành), hoặc dùng sẵn `say` (macOS) / giọng Windows / `espeak-ng` (Linux, giọng máy).
+Đã chạy thử tự động trên Linux, macOS và Windows (xem badge CI ở đầu trang).
 
 **Cách 1 — plugin (khuyến nghị).** Trong Claude Code, gõ hai lệnh:
 
@@ -92,19 +97,24 @@ node skills/motion-video/scripts/mograph.mjs render examples/ai-agent-explainer.
 | `lint <spec>` | Kiểm tra schema, đo chữ tràn khung, bảng timing |
 | `sheet <spec> [--scenes 2,5-6] [--frames 3] [-o f.jpg]` | Contact sheet để QA hình ảnh |
 | `render <spec> [--draft] [--scenes 1-3] [--size 16:9] [-o f.mp4]` | Xuất MP4 (`--draft`: nửa độ phân giải, 15fps) |
-| `assets <dir> [--sheet]` | Liệt kê ảnh/nhạc kèm gợi ý cách dùng |
+| `assets <dir> [--sheet]` | Liệt kê ảnh/video/nhạc kèm gợi ý cách dùng |
+| `doctor` | Kiểm tra Node, trình duyệt, ffmpeg, trình đọc giọng; in lệnh cài còn thiếu |
 | `music --style upbeat --dur 40 -o a.wav` | Xuất riêng bản nhạc có sẵn |
 | `beat <audio>` | Dò BPM file nhạc của bạn |
 
 ## Hai phong cách
 
 - `style: slides` (mặc định): mỗi scene một cảnh, hợp video giải thích và shorts. Xem `examples/ai-agent-explainer.yaml`.
+  Chuyển cảnh: `transition: fade | slide | zoom | blur | wipe | cut` (hoặc `tr:` cho từng scene).
 - `style: desk`: mỗi scene là một thẻ cửa sổ trên cùng một mặt bàn, camera lia và zoom giữa các thẻ (có nhoè chuyển động),
   mascot nhảy theo, con trỏ tự bấm checklist, kết bằng toàn cảnh rồi vé mời. Xem `examples/workshop-invite.yaml`.
+  `layout: row | column | grid | zigzag` để camera đi ngang, dọc hoặc chéo.
+
+Footage + giọng đọc + chuyển cảnh: xem `examples/feature-tour.yaml`.
 
 ## Scene types
 
-`hook` · `bullets` · `flow` · `loop` · `compare` · `chat` · `term` · `stat` · `bars` · `quote` · `image` · `cta` ·
+`hook` · `bullets` · `flow` · `loop` · `compare` · `chat` · `term` · `stat` · `bars` · `quote` · `image` · `clip` · `cta` ·
 `profile` · `check` · `clock` · `pin` · `ticket` · `recap` · `raw`. Xem `examples/kitchen-sink.yaml`.
 
 ## Brand
@@ -126,6 +136,8 @@ skills/motion-video/
   SKILL.md                 quy trình + cheatsheet cho agent
   scripts/mograph.mjs      CLI
   scripts/schema.mjs       schema (dùng chung cho lint và catalog)
+  scripts/audio.mjs        nhạc tổng hợp + dò BPM
+  scripts/media.mjs        footage, giọng đọc, phụ đề, trộn âm thanh
   engine/                  engine.js + style.css — mỗi frame là hàm thuần của thời gian
 examples/
 ```
@@ -134,7 +146,7 @@ Thêm scene type mới: một builder trong `engine/engine.js`, CSS trong `style
 
 ## Giới hạn hiện tại
 
-- Chưa có TTS và phụ đề khớp từng từ.
-- Nhạc có sẵn là nhạc tổng hợp đơn giản (3 kiểu). Dò BPM cho file ngoài có thể nhầm nhịp đôi/nửa; sửa bằng `meta.bpm`.
-- `slides` chỉ có một kiểu chuyển cảnh (fade + trượt); `desk` chỉ lia ngang.
-- Chưa chèn được video footage, chỉ ảnh tĩnh.
+- **Phụ đề**: thời điểm từng cụm câu được ước lượng theo độ dài chữ rồi khớp vào các khoảng ngừng thật trong giọng đọc; chưa phải căn chỉnh từng từ bằng nhận dạng giọng nói.
+- **Giọng đọc**: chất lượng phụ thuộc trình đọc trên máy. `piper` cho giọng tự nhiên nhưng lần đầu phải tải giọng (~60 MB); `espeak-ng` nghe như máy.
+- **Nhạc có sẵn** là nhạc tổng hợp (5 kiểu), không thay được nhạc sản xuất chuyên nghiệp. Dò BPM đúng trên các bản thử, nhưng nhạc ngoài có thể đọc được nhiều tempo; lint sẽ báo và bạn chọn bằng `meta.bpm`.
+- **Footage** được tách thành ảnh trước khi dựng, nên clip dài làm render chậm hơn (clip mặc định tối đa 12 giây, đổi bằng `max`).

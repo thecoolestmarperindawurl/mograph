@@ -7,6 +7,8 @@ const SR = 44100, mtof = m => 440 * Math.pow(2, (m - 69) / 12);
 export const STYLES = {
   upbeat: { bpm: 112, d: 'bright pop-electronic, plucked arps — product intros, explainers', chords: [[57, 60, 64], [53, 57, 60], [48, 52, 55], [55, 59, 62]], bass: [33, 29, 36, 31] },
   chill: { bpm: 86, d: 'lo-fi, soft keys — personal brand, storytelling', chords: [[53, 57, 60, 64], [52, 55, 59, 62], [50, 53, 57, 60], [48, 52, 55, 59]], bass: [41, 40, 38, 36] },
+  cinematic: { bpm: 80, d: 'slow, wide pads + deep hits — brand stories, emotional openers', chords: [[45, 52, 57, 60], [41, 48, 53, 57], [48, 55, 60, 64], [43, 50, 55, 59]], bass: [33, 29, 36, 31] },
+  hiphop: { bpm: 92, d: 'boom-bap swing, warm keys — creators, tips, behind-the-scenes', chords: [[50, 53, 57, 60], [48, 52, 55, 59], [46, 50, 53, 57], [45, 48, 52, 55]], bass: [38, 36, 34, 33] },
   drive: { bpm: 124, d: 'four-on-the-floor, energetic — launches, announcements', chords: [[50, 53, 57], [46, 50, 53], [53, 57, 60], [48, 52, 55]], bass: [38, 34, 41, 36] },
 };
 
@@ -47,6 +49,19 @@ export function synth({ style = 'upbeat', bpm, dur, out }) {
       bass(B(0), spb * 1.4, root, 0.32); bass(B(2.5), spb * 1.2, root, 0.26);
       ch.forEach((m, j) => { pluck(B(0) + j * 0.012, m + 12, 0.075, j % 2 ? 0.3 : -0.3, 2.2); pluck(B(1.5) + j * 0.012, m + 12, 0.06, j % 2 ? 0.3 : -0.3, 2); });
       pad(T, 4 * spb, ch, 0.05);
+    } else if (style === 'cinematic') {
+      kick(B(0), 1); if (b % 2) kick(B(2.5), 0.7);
+      if (full) { noise(B(2), 0.5, 6, 0.16, 0.08); add(D, B(2), 0.6, t => Math.sin(2 * Math.PI * (70 + 40 * Math.exp(-t * 10)) * t) * Math.exp(-t * 5) * 0.5); }
+      bass(B(0), spb * 3.6, root, 0.34);
+      pad(T, 4 * spb, ch, 0.075);
+      ch.forEach((m, j) => pluck(B(j * 0.5) + 0.01, m + 24, 0.045, j % 2 ? 0.6 : -0.6, 3));
+      if (full) for (let i = 0; i < 4; i++) hat(B(i + 0.5), 0.04, 0.5);
+    } else if (style === 'hiphop') {
+      const sw = 0.12; // swing on off-beats
+      kick(B(0)); kick(B(1.5 + sw / 2), 0.75); kick(B(2.25 + sw / 2), 0.8); snare(B(1)); snare(B(3));
+      for (let i = 0; i < 8; i++) hat(B(i / 2 + (i % 2 ? sw : 0)), i % 2 ? 0.06 : 0.1, -0.2);
+      bass(B(0), spb * 1.3, root, 0.34); bass(B(2.25 + sw / 2), spb * 0.9, root + 7, 0.26);
+      ch.forEach((m, j) => { pluck(B(0) + j * 0.015, m + 12, 0.07, j % 2 ? 0.35 : -0.35, 2.4); if (full) pluck(B(2.5 + sw) + j * 0.015, m + 12, 0.055, j % 2 ? 0.35 : -0.35, 1.6); });
     } else {
       for (let i = 0; i < 4; i++) { kick(B(i)); hat(B(i + 0.5), 0.13); bass(B(i + 0.5), spb * 0.42, root, 0.3); }
       if (full) { snare(B(1)); snare(B(3)); for (let i = 0; i < 16; i++) pluck(B(i / 4), ch[i % ch.length] + 12 + (i % 8 > 5 ? 12 : 0), 0.06, i % 2 ? 0.5 : -0.5, 0.6); }
@@ -74,17 +89,22 @@ export function detectBeat(file, ff = 'ffmpeg') {
   const on = new Float32Array(F); let prev = 0, mean = 0;
   for (let i = 0; i < F; i++) { let e = 0; for (let j = 0; j < hop; j++) { const v = pcm[i * hop + j] / 32768; e += v * v; } const l = Math.log(1 + e * 50); on[i] = Math.max(0, l - prev); prev = l; mean += on[i]; }
   mean /= F; for (let i = 0; i < F; i++) on[i] = Math.max(0, on[i] - mean);
-  let best = 0, p0 = 0, tot = 0;
-  for (let lag = Math.round(60 / 190 / h); lag <= Math.round(60 / 62 / h); lag++) {
-    let s = 0; for (let i = lag; i < F; i++) s += on[i] * on[i - lag];
-    const bpm = 60 / (lag * h); s *= Math.exp(-0.5 * Math.pow(Math.log2(bpm / 112) / 0.75, 2)); tot += s;
-    if (s > best) { best = s; p0 = lag; }
-  }
-  let sc = 0, P = p0, PH = 0;
-  for (let p = p0 * 0.97; p <= p0 * 1.03; p += 0.005) for (let ph = 0; ph < p; ph += 0.5) {
-    let s = 0; for (let x = ph; x < F - 1; x += p) s += on[Math.round(x)];
-    if (s > sc) { sc = s; P = p; PH = ph; }
-  }
-  const n = Math.round(60 / 62 / h) - Math.round(60 / 190 / h) + 1;
-  return { bpm: +(60 / (P * h)).toFixed(2), offset: +Math.max(0, PH * h - 0.012).toFixed(3), conf: +Math.min(1, best / (tot / n) / 8).toFixed(2) };
+  // comb-filter tempo search: a beat grid that hits strong onsets on the beat (and weaker ones on the off-beat) scores high
+  const score = (bpm, fine) => {
+    const T = 60 / bpm / h; let best = 0, ph0 = 0;
+    for (let ph = 0; ph < T; ph += fine ? 0.25 : 1) {
+      let s = 0, n = 0;
+      for (let x = ph; x < F - 1; x += T) { s += on[Math.round(x)] + 0.5 * (on[Math.round(x + T / 2)] || 0) + 0.25 * ((on[Math.round(x + T / 4)] || 0) + (on[Math.round(x + 3 * T / 4)] || 0)); n++; }
+      s /= n; if (s > best) { best = s; ph0 = ph; }
+    }
+    return [best, ph0];
+  };
+  const prior = b => Math.exp(-0.5 * Math.pow(Math.log2(b / 110) / 0.9, 2));
+  let bb = 120, bs = -1, sum = 0, cnt = 0;
+  for (let b = 60; b <= 190; b += 0.5) { const [sc] = score(b); sum += sc; cnt++; if (sc * prior(b) > bs) { bs = sc * prior(b); bb = b; } }
+  let bpm = bb, raw = 0, PH = 0;
+  for (let b = bb - 0.6; b <= bb + 0.6; b += 0.05) { const [sc, ph] = score(b, true); if (sc > raw) { raw = sc; bpm = b; PH = ph; } }
+  const alt = [bpm * 2, bpm / 2, bpm * 3 / 4, bpm * 4 / 3].filter(b => b >= 60 && b <= 190 && score(b)[0] > raw * 0.85).map(b => +b.toFixed(1));
+  const P = 60 / bpm / h;
+  return { bpm: +bpm.toFixed(2), offset: +Math.max(0, (PH % P) * h - 0.012).toFixed(3), conf: +Math.min(1, (raw / (sum / cnt) - 1) / 1.5).toFixed(2), alt };
 }

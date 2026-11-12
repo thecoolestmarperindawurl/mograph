@@ -12,6 +12,7 @@ export const SCENES = {
   term: { d: 'Terminal window. Lines starting with "$ " are typed; others print as output.', main: 'list', items: [1, 8], f: { name: 'window title', title: '', kicker: '' }, ex: '- term: ["$ claude \\"fix the failing test\\"", "Reading tests…", "✓ 12 passed"]' },
   quote: { d: 'Pull quote.', main: 'str', max: 30, f: { by: 'attribution' }, ex: '- quote: "Agent là model dùng tool trong một vòng lặp"\n  by: …' },
   bars: { d: 'Horizontal bar chart from a map label→number. Largest bar highlighted (override with hi).', main: 'map', items: [2, 6], f: { title: '', unit: 'suffix e.g. "%"', hi: 'label to highlight', src: 'source line (required for real data)', kicker: '' }, ex: '- bars: {Nhóm A: 42, Nhóm B: 68}\n  unit: "%"\n  src: "Nguồn: …"' },
+  clip: { d: 'Video footage (mp4/mov/webm) playing inside the card. from/to trim seconds; sound: true (or 0–1) mixes its audio; fill: true = full-screen footage with title over it. Scene lasts at least the clip length.', main: 'str', f: { title: '', caption: '', kicker: '', from: 'start second', to: 'end second', sound: 'true or volume 0–1', fill: 'true = full-bleed background', max: 'cap clip length, default 12' }, ex: '- clip: assets/demo.mp4\n  from: 2\n  to: 8\n  title: Xem thực tế' },
   image: { d: 'Framed image/screenshot with slow zoom. Path relative to the spec file.', main: 'str', f: { title: '', caption: '', kicker: '' }, ex: '- image: assets/screenshot.png\n  caption: Giao diện thực tế' },
   cta: { d: 'Closing call to action, centered.', main: 'str', max: 12, f: { sub: '', button: 'pill button label', handle: '@account / url' }, ex: '- cta: Follow để học *AI Agent* mỗi ngày\n  button: Follow\n  handle: "@kenh"' },
   profile: { d: 'Person card: avatar (initials or image) + name + typed quote.', main: 'str', f: { role: 'small label above the name', quote: 'typed out', avatar: 'image path (else initials)' }, ex: '- profile: Hưng Kescy\n  role: Diễn giả\n  quote: Cái gì máy làm tốt thì người đừng làm' },
@@ -40,9 +41,16 @@ export const META = {
   style: 'slides (default: one scene per cut) | desk (scenes are window cards on one canvas; camera whip-pans between them)',
   mascot: 'desk only: image path of a character that perches on the active card and hops along',
   marquee: 'text for a scrolling band on top, e.g. "LANHMAR ★ DIGITAL MARKETER ★"',
+  transition: 'slides only: fade (default) | slide | zoom | blur | wipe | cut (per scene: tr)',
+  layout: 'desk only: row (default) | column | grid | zigzag — how cards sit on the canvas, so the camera moves in 2D',
+  tts: 'voice engine: auto (default) | piper | say | sapi | espeak',
+  voice: 'voice name for the engine (piper e.g. vi_VN-vais1000-medium, say e.g. Linh)',
+  rate: 'speech speed, 1 default',
+  captions: 'false = no on-screen captions for voice lines',
+  capwords: 'max words per caption line, 7 default',
   cursor: 'name tag on the cursor in `check` scenes, e.g. "Bạn"',
 };
-const COMMON = ['dur', 'win', 'logo'];
+const COMMON = ['dur', 'win', 'logo', 'voice', 'vo', 'tr'];
 const SIZES = { '9:16': [1080, 1920], '16:9': [1920, 1080], '1:1': [1080, 1080], '4:5': [1080, 1350] };
 const wc = s => String(s).split(/\s+/).filter(Boolean).length;
 
@@ -56,6 +64,8 @@ export function normalize(raw) {
   if (sz.length !== 2) errors.push(`meta.size "${meta.size}" invalid`); else[meta.w, meta.h] = sz;
   if (meta.w % 2 || meta.h % 2) errors.push('meta.size: width and height must be even');
   if (meta.music && !STYLES[meta.music]) errors.push(`meta.music "${meta.music}" unknown (${Object.keys(STYLES).join(', ')})`);
+  if (meta.transition && !['fade', 'slide', 'zoom', 'blur', 'wipe', 'cut'].includes(meta.transition)) errors.push('meta.transition must be fade|slide|zoom|blur|wipe|cut');
+  if (meta.layout && !['row', 'column', 'grid', 'zigzag'].includes(meta.layout)) errors.push('meta.layout must be row|column|grid|zigzag');
   if (meta.music && meta.audio) errors.push('meta: use music OR audio, not both');
   if (meta.mascot && meta.style !== 'desk') warns.push('meta.mascot is only shown with style: desk');
   const scenes = raw.scenes.map((s, i) => {
@@ -76,6 +86,8 @@ export function normalize(raw) {
     if (type === 'compare' && Array.isArray(s.rows) && s.rows.some(r => !Array.isArray(r) || r.length !== 2)) errors.push(`${id} compare: each row must be [left, right]`);
     if ((type === 'stat' || type === 'bars') && !s.src) warns.push(`${id} ${type}: no src — add a source line if this is real data`);
     if (type === 'recap' && meta.style !== 'desk') errors.push(`${id} recap: needs meta.style: desk`);
+    if (s.tr && !['fade', 'slide', 'zoom', 'blur', 'wipe', 'cut'].includes(s.tr)) errors.push(`${id}: tr must be fade|slide|zoom|blur|wipe|cut`);
+    if (s.vo && !s.voice) errors.push(`${id}: vo needs the matching voice: text (used for captions)`);
     if (s.dur != null && !(+s.dur > 0)) errors.push(`${id}: dur must be a positive number`);
     return { ...s, type };
   });
@@ -85,7 +97,7 @@ export function normalize(raw) {
 export function catalog(type) {
   if (type && SCENES[type]) {
     const d = SCENES[type];
-    return `${type} (${d.main}) — ${d.d}\nfields: ${Object.entries(d.f).map(([k, v]) => k + (v ? ` (${v})` : '')).join('; ') || '—'}; dur (seconds, optional — auto if omitted); win (window title, desk style); logo (image, hook/cta/ticket)\n${d.ex}`;
+    return `${type} (${d.main}) — ${d.d}\nfields: ${Object.entries(d.f).map(([k, v]) => k + (v ? ` (${v})` : '')).join('; ') || '—'}; dur (seconds, optional — auto if omitted); win (window title, desk style); logo (image, hook/cta/ticket); voice (narration text → speech + captions); vo (your recording of that line); tr (transition out of this scene)\n${d.ex}`;
   }
   return 'SCENE TYPES (first key = type; `mograph catalog <type>` for fields + example)\n'
     + Object.entries(SCENES).map(([k, d]) => `  ${k.padEnd(8)} ${d.d}`).join('\n')

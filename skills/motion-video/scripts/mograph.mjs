@@ -8,6 +8,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { createRequire } from 'node:module';
 import { normalize, catalog } from './schema.mjs';
 import { STYLES, synth, detectBeat } from './audio.mjs';
+import { probe, prepClip, prepVoices, mixAudio, ttsEngines, CACHE } from './media.mjs';
 
 const require = createRequire(import.meta.url);
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -34,10 +35,11 @@ function load(file) {
   if (r.spec) {
     const res = (o, k) => { if (!o[k] || /^(https?|file|data):/.test(o[k])) return; const p = path.resolve(dir, o[k]); if (!fs.existsSync(p)) r.errors.push(`file not found: ${o[k]}`); o[k] = pathToFileURL(p).href; };
     for (const s of r.spec.scenes) for (const k of ['image', 'logo', 'avatar']) if (k !== 'image' || s.type === 'image') res(s, k);
+    for (const s of r.spec.scenes) for (const k of s.type === 'clip' ? ['clip', 'vo'] : ['vo']) if (s[k]) { const p = path.resolve(dir, s[k]); if (!fs.existsSync(p)) r.errors.push(`file not found: ${s[k]}`); else s[k] = p; }
     res(r.spec.meta, 'mascot');
     if (r.spec.meta.audio) { r.spec.meta.audio = path.resolve(dir, r.spec.meta.audio); if (!fs.existsSync(r.spec.meta.audio)) r.errors.push(`audio not found: ${r.spec.meta.audio}`); }
   }
-  return { ...r, txt };
+  return { ...r, txt, dir };
 }
 
 const ffbin = () => process.env.MOGRAPH_FFMPEG || (spawnSync('ffmpeg', ['-version']).status === 0 ? 'ffmpeg' : (() => { try { return require('ffmpeg-static'); } catch { die('ffmpeg not found — install ffmpeg or `npm i ffmpeg-static`, or set MOGRAPH_FFMPEG'); } })());
@@ -47,8 +49,15 @@ function prepBeat(spec) {
   if (m.sync === 'off' || !(m.music || m.audio)) return;
   if (m.music) m._beat = { p: 60 / (m.bpm || STYLES[m.music].bpm), o: 0 };
   else if (m.bpm) m._beat = { p: 60 / m.bpm, o: 0 };
-  else { try { const d = detectBeat(m.audio, ffbin()); m._beat = { p: 60 / d.bpm, o: d.offset, conf: d.conf }; } catch (e) { console.log('WARN beat detection failed (' + e.message + ') — cuts are not synced; set meta.bpm'); return; } }
+  else { try { const d = detectBeat(m.audio, ffbin()); m._beat = { p: 60 / d.bpm, o: d.offset, conf: d.conf, alt: d.alt }; } catch (e) { console.log('WARN beat detection failed (' + e.message + ') — cuts are not synced; set meta.bpm'); return; } }
   m._beat.n = m.sync === 'beat' ? 1 : m.sync === 'bar' ? 4 : 2;
+}
+// footage frames + voiceover, before the engine measures timing
+function prepMedia(r, fps, maxW) {
+  const ff = ffbin(), sp = r.spec, notes = [];
+  for (const s of sp.scenes) if (s.type === 'clip') try { prepClip(ff, s, fps, maxW); } catch (e) { r.errors.push(e.message); }
+  try { const v = prepVoices(ff, sp, r.dir); if (v) { r.voice = v; notes.push(...v.notes); } } catch (e) { r.errors.push(e.message); }
+  r.warns.push(...notes);
 }
 async function browser() {
   const pw = need(['playwright-core', 'playwright'], `missing deps — run: npm install --prefix "${ROOT}"`);
@@ -82,7 +91,8 @@ function report(r, info) {
       if (s.fixed && s.dur < s.need) out.push(`WARN s${s.i} ${s.type}: dur ${s.dur}s is shorter than its animation (${s.need}s)`);
       if (s.imgErr) out.push(`ERR  s${s.i}: image failed to load`);
     }
-    if (info.beat) out.push(`♪ ${m.music || 'audio'} ${(60 / info.beat.p).toFixed(1)} bpm · cuts every ${info.beat.n} beat(s) = ${(info.beat.p * info.beat.n).toFixed(2)}s${info.beat.conf != null ? ` · detection confidence ${info.beat.conf}${info.beat.conf < 0.15 ? ' (LOW — check by ear or set meta.bpm)' : ''}` : ''}`);
+    if (r.voice) { const sc = r.spec.scenes.filter(x => x._vo); const snap = sc.reduce((a, x) => a + (x._vo.cues[0]?.snapped || 0), 0) / sc.length; out.push(`🎙 ${r.voice.engine} · ${sc.length} voice line(s) · ${sc.reduce((a, x) => a + x._vo.dur, 0).toFixed(1)}s speech · captions ${m.captions === false ? 'off' : `on, ${Math.round(snap * 100)}% of phrase breaks matched to pauses`}`); }
+    if (info.beat) out.push(`♪ ${m.music || 'audio'} ${(60 / info.beat.p).toFixed(1)} bpm · cuts every ${info.beat.n} beat(s) = ${(info.beat.p * info.beat.n).toFixed(2)}s${info.beat.conf != null ? ` · detection confidence ${info.beat.conf}${info.beat.conf < 0.15 ? ' (LOW — check by ear or set meta.bpm)' : ''}${info.beat.alt && info.beat.alt.length ? ` · could also be ${info.beat.alt.join(' or ')} bpm — if cuts feel rushed or slow, set meta.bpm` : ''}` : ''}`);
     if (m.max && info.total > m.max) out.push(`WARN total ${info.total}s exceeds meta.max ${m.max}s — cut scenes or set pace < 1`);
   }
   for (const w of r.warns) out.push('WARN ' + w);
@@ -99,14 +109,13 @@ async function assets(dir) {
   const ext = /\.(png|jpe?g|webp|gif|svg|mp3|wav|m4a|aac|ogg|mp4|mov|webm)$/i, rows = [], imgs = [];
   for (const f of fs.readdirSync(dir).filter(f => ext.test(f)).sort()) {
     const p = path.join(dir, f), kb = Math.round(fs.statSync(p).size / 1024);
-    const j = JSON.parse(spawnSync('ffprobe', ['-v', 'error', '-show_entries', 'stream=codec_type,width,height,pix_fmt:format=duration', '-of', 'json', p]).stdout.toString() || '{}');
-    const v = (j.streams || []).find(x => x.width), isA = /\.(mp3|wav|m4a|aac|ogg)$/i.test(f), isV = /\.(mp4|mov|webm)$/i.test(f);
+    const pr = probe(ffbin(), p), v = pr.w ? { width: pr.w, height: pr.h } : null, isA = /\.(mp3|wav|m4a|aac|ogg)$/i.test(f), isV = /\.(mp4|mov|webm)$/i.test(f);
     let use;
-    if (isA) use = `meta.audio (${(+j.format?.duration || 0).toFixed(0)}s) — run \`beat\` to check BPM`;
-    else if (isV) use = 'video footage is not supported yet — export a still frame';
+    if (isA) use = `meta.audio (${pr.dur.toFixed(0)}s) — run \`beat\` to check BPM · or \`vo:\` for a recorded voice line`;
+    else if (isV) use = `\`clip\` scene (${pr.dur.toFixed(1)}s${pr.audio ? ', has sound' : ''}) — trim with from/to; \`fill: true\` for full-screen footage`;
     else if (/\.svg$/i.test(f) || !v) use = 'vector: logo / mascot';
     else {
-      const r = v.width / v.height, alpha = /a/.test((v.pix_fmt || '').replace('gray', ''));
+      const r = v.width / v.height, alpha = pr.alpha;
       use = alpha && Math.max(v.width, v.height) <= 1400 ? 'transparent: logo / mascot / avatar' : r >= 1.4 ? '`image` scene (wide: fills a window card — best for product shots, screenshots)' : r <= 0.8 ? '`image` scene, 9:16 only (tall)' : '`image` scene or `avatar`';
       if (v.width < 700 && !alpha) use += ' · low-res, will look soft full-width';
     }
@@ -123,17 +132,31 @@ async function assets(dir) {
     console.log(`sheet → ${out} (≈${tok(Math.round((d[0] * d[1]) / 750))} image tokens to view)`); await br.close();
   }
 }
+async function doctor() {
+  const os_ = process.platform, ok = [], bad = [];
+  const hint = { darwin: { ff: 'brew install ffmpeg', chrome: 'install Google Chrome', tts: '`say` is built in; for better voices: pip3 install piper-tts' }, win32: { ff: 'winget install Gyan.FFmpeg  (or: npm i --prefix <skill dir> ffmpeg-static)', chrome: 'install Google Chrome or Microsoft Edge', tts: 'Windows speech is built in; for better voices: pip install piper-tts' }, linux: { ff: 'sudo apt install ffmpeg', chrome: 'install Google Chrome, or: npx playwright install chromium', tts: 'pip3 install piper-tts  (or: sudo apt install espeak-ng)' } }[os_] || {};
+  const nv = +process.versions.node.split('.')[0];
+  (nv >= 18 ? ok : bad).push(`node ${process.versions.node}${nv >= 18 ? '' : ' — need 18+'}`);
+  for (const d of ['yaml', 'playwright-core']) { try { require(d); ok.push(d); } catch { bad.push(`${d} missing — npm install --prefix "${ROOT}"`); } }
+  let ff = null; try { ff = process.env.MOGRAPH_FFMPEG || (spawnSync('ffmpeg', ['-version']).status === 0 ? 'ffmpeg' : require('ffmpeg-static')); } catch {}
+  if (ff && spawnSync(ff, ['-version']).status === 0) ok.push('ffmpeg ' + (spawnSync(ff, ['-version']).stdout.toString().match(/version (\S+)/) || [])[1]); else bad.push('ffmpeg missing — ' + hint.ff);
+  try { const pw = require('playwright-core'); let b = null; for (const o of process.env.MOGRAPH_CHROME ? [{ executablePath: process.env.MOGRAPH_CHROME }] : [{}, { channel: 'chrome' }, { channel: 'msedge' }]) { try { b = await pw.chromium.launch(o); break; } catch {} } if (b) { ok.push('browser ' + b.version()); await b.close(); } else bad.push('no Chrome/Edge/Chromium — ' + hint.chrome); } catch {}
+  const t = ttsEngines(); (t.length ? ok : bad).push(t.length ? 'voice: ' + t.join(', ') : 'no text-to-speech (only needed for `voice:`) — ' + hint.tts);
+  console.log(`${os_} · cache ${CACHE}\n` + ok.map(x => '  ok   ' + x).join('\n') + (bad.length ? '\n' + bad.map(x => '  MISS ' + x).join('\n') : ''));
+  process.exitCode = bad.some(x => !/text-to-speech/.test(x)) ? 1 : 0;
+}
 async function main() {
   if (cmd === 'catalog') return console.log(catalog(pos[0]));
   if (cmd === 'music') {
-    if (!opt.o) return console.log('mograph music --style <' + Object.keys(STYLES).join('|') + '> [--bpm N] --dur <seconds> -o track.wav\n' + Object.entries(STYLES).map(([k, v]) => `  ${k.padEnd(7)} ${v.bpm} bpm — ${v.d}`).join('\n'));
+    if (!opt.o) return console.log('mograph music --style <' + Object.keys(STYLES).join('|') + '> [--bpm N] --dur <seconds> -o track.wav\n' + Object.entries(STYLES).map(([k, v]) => `  ${k.padEnd(9)} ${v.bpm} bpm — ${v.d}`).join('\n'));
     const r = synth({ style: opt.style || 'upbeat', bpm: +opt.bpm || undefined, dur: +opt.dur || 30, out: opt.o });
     return console.log(`music → ${opt.o} · ${r.bpm} bpm · ${r.bars} bars · original synth track, free to use`);
   }
-  if (cmd === 'beat') { const d = detectBeat(pos[0], ffbin()); return console.log(`${d.bpm} bpm · first beat at ${d.offset}s · confidence ${d.conf}${d.conf < 0.15 ? ' (LOW)' : ''}`); }
+  if (cmd === 'beat') { const d = detectBeat(pos[0], ffbin()); return console.log(`${d.bpm} bpm · first beat at ${d.offset}s · confidence ${d.conf}${d.conf < 0.15 ? ' (LOW)' : ''}${d.alt.length ? ` · could also be ${d.alt.join(' or ')} bpm (other readings of the same rhythm)` : ''}`); }
   if (cmd === 'assets') return assets(pos[0] || '.');
+  if (cmd === 'doctor') return doctor();
   if (!['lint', 'sheet', 'render'].includes(cmd)) {
-    return console.log('mograph <command> <spec.yaml>\n  catalog [type]                 scene types / fields (read on demand)\n  lint <spec>                    validate + measure text fit + timing (text only, no images)\n  sheet <spec> [--scenes 2,5-6] [--frames 3] [-o sheet.jpg]   contact sheet for visual QA\n  assets <dir> [--sheet]         list images/audio with size + how to use each (text; --sheet adds one thumbnail image)\n  music --style upbeat --dur 40 -o track.wav   write a built-in track · beat <audio>   detect BPM of your own file\n  render <spec> [--draft] [--scenes 1-3] [-o out.mp4]         render video\n  any command: --size 16:9   override meta.size (same spec, another aspect ratio)');
+    return console.log('mograph <command> <spec.yaml>\n  catalog [type]                 scene types / fields (read on demand)\n  lint <spec>                    validate + measure text fit + timing (text only, no images)\n  sheet <spec> [--scenes 2,5-6] [--frames 3] [-o sheet.jpg]   contact sheet for visual QA\n  doctor                         check node, browser, ffmpeg, voice engines (prints install hints)\n  assets <dir> [--sheet]         list images/audio with size + how to use each (text; --sheet adds one thumbnail image)\n  music --style upbeat --dur 40 -o track.wav   write a built-in track · beat <audio>   detect BPM of your own file\n  render <spec> [--draft] [--scenes 1-3] [-o out.mp4]         render video\n  any command: --size 16:9   override meta.size (same spec, another aspect ratio)');
   }
   const r = load(pos[0]);
   if (!r.spec) { report(r, null); process.exit(1); }
@@ -141,6 +164,8 @@ async function main() {
   const base = pos[0].replace(/\.(ya?ml|json)$/, '');
   const br = await browser();
   try {
+    const draftR = cmd === 'render' && !!opt.draft;
+    prepMedia(r, cmd === 'render' ? (draftR ? Math.min(15, r.spec.meta.fps) : r.spec.meta.fps) : 6, cmd === 'render' && !draftR ? 1280 : 640);
     if (cmd === 'lint') { const { info } = await stagePage(br, r.spec); process.exitCode = report(r, info) ? 0 : 1; return; }
 
     if (cmd === 'sheet') {
@@ -178,10 +203,15 @@ async function main() {
     if (!report(r, info)) die('fix lint errors before rendering');
     const ff = ffbin();
     const out = opt.o || base + (draft ? '.draft.mp4' : '.mp4'), m = r.spec.meta;
-    let audio = !want && m.audio, tmp = null;
-    if (!want && m.music) { tmp = out + '.music.wav'; synth({ style: m.music, bpm: m.bpm, dur: info.total, out: tmp }); audio = tmp; }
+    let audio = null, tmp = [];
+    if (!want) {
+      let mus = m.audio || null;
+      if (m.music) { mus = out + '.music.wav'; tmp.push(mus); synth({ style: m.music, bpm: m.bpm, dur: info.total, out: mus }); }
+      const mix = out + '.mix.wav'; tmp.push(mix);
+      audio = mixAudio(ff, { music: mus, info, scenes: r.spec.scenes, volume: m.volume ?? (r.voice ? 0.55 : 0.8), out: mix });
+    }
     const args = ['-y', '-loglevel', 'error', '-f', 'image2pipe', '-framerate', String(fps), '-c:v', 'mjpeg', '-i', '-',
-      ...(audio ? ['-i', audio, '-af', `volume=${m.volume ?? 0.8},afade=t=out:st=${Math.max(0, info.total - 1.6).toFixed(2)}:d=1.6`, '-c:a', 'aac', '-b:a', '192k', '-t', String(info.total)] : []),
+      ...(audio ? ['-i', audio, '-c:a', 'aac', '-b:a', '192k', '-t', String(info.total)] : []),
       '-c:v', 'libx264', '-preset', draft ? 'veryfast' : 'medium', '-crf', draft ? '26' : '17', '-pix_fmt', 'yuv420p', '-movflags', '+faststart', out];
     const enc = spawn(ff, args, { stdio: ['pipe', 'inherit', 'inherit'] });
     const done = new Promise((res, rej) => enc.on('close', c => (c ? rej(new Error('ffmpeg exited ' + c)) : res())));
@@ -195,7 +225,7 @@ async function main() {
       if (process.stdout.isTTY) process.stdout.write(`\r${f}/${total}`);
     }
     enc.stdin.end(); await done;
-    if (tmp) fs.rmSync(tmp, { force: true });
+    for (const f of tmp) fs.rmSync(f, { force: true });
     if (process.stdout.isTTY) process.stdout.write('\r');
     console.log(`video → ${out} · ${info.total}s · ${total} frames@${fps} · ${(fs.statSync(out).size / 1e6).toFixed(1)}MB · ${((Date.now() - t0) / 1000).toFixed(0)}s render`);
   } finally { await br.close(); }

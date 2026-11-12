@@ -1,0 +1,20 @@
+# Smoke test for v0.5 features: footage, voiceover + captions, transitions, 2D desk camera.
+meta: {size: "16:9", theme: paper, transition: wipe, music: hiphop, rate: 1.05}
+scenes:
+  - hook: "Footage, *voice* and captions"
+    kicker: mograph 0.5
+    voice: This video was made from one short spec file.
+    tr: slide
+  - clip: lanhmar/assets/kho-bau-scroll.mp4
+    from: 1
+    to: 5
+    kicker: Footage
+    title: Real screen recording
+    caption: Trimmed with from and to
+    voice: Footage plays inside the card, frame by frame.
+    tr: zoom
+  - flow: [Script, Spec, Lint, Render]
+    title: Same four steps
+    tr: blur
+  - cta: "Made with *mograph*"
+    voice: Captions follow the voice automatically.

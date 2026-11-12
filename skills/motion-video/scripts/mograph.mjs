@@ -13,7 +13,18 @@ import { probe, prepClip, prepVoices, mixAudio, ttsEngines, CACHE } from './medi
 const require = createRequire(import.meta.url);
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const die = m => { console.error('ERR ' + m); process.exit(1); };
-const need = (names, hint) => { for (const n of names) try { return require(n); } catch {} die(hint); };
+// first run: install the two npm dependencies into the skill folder (works the same on Windows, macOS, Linux)
+let triedInstall = false;
+const need = (names, hint) => {
+  for (const n of names) try { return require(n); } catch {}
+  if (!triedInstall && !process.env.MOGRAPH_NO_INSTALL) {
+    triedInstall = true;
+    console.log('installing mograph dependencies (first run, ~10s)…');
+    const r = spawnSync(process.platform === 'win32' ? 'npm.cmd' : 'npm', ['install', '--no-audit', '--no-fund', '--loglevel=error'], { cwd: ROOT, stdio: 'inherit', shell: process.platform === 'win32' });
+    if (r.status === 0) for (const n of names) try { return require(n); } catch {}
+  }
+  die(hint);
+};
 
 const argv = process.argv.slice(2), cmd = argv[0], pos = [], opt = {};
 for (let i = 1; i < argv.length; i++) {
@@ -28,7 +39,7 @@ function load(file) {
   if (!fs.existsSync(file)) die(`spec not found: ${file}`);
   const txt = fs.readFileSync(file, 'utf8');
   let raw;
-  try { raw = /\.json$/.test(file) ? JSON.parse(txt) : need(['yaml'], `missing deps — run: npm install --prefix "${ROOT}"`).parse(txt); }
+  try { raw = /\.json$/.test(file) ? JSON.parse(txt) : need(['yaml'], `missing deps — run: cd "${ROOT}" && npm install`).parse(txt); }
   catch (e) { die('cannot parse spec: ' + e.message.split('\n')[0]); }
   if (opt.size && raw && typeof raw === 'object') raw.meta = { ...(raw.meta || {}), size: opt.size };
   const r = normalize(raw), dir = path.dirname(path.resolve(file));
@@ -60,7 +71,7 @@ function prepMedia(r, fps, maxW) {
   r.warns.push(...notes);
 }
 async function browser() {
-  const pw = need(['playwright-core', 'playwright'], `missing deps — run: npm install --prefix "${ROOT}"`);
+  const pw = need(['playwright-core', 'playwright'], `missing deps — run: cd "${ROOT}" && npm install`);
   const tries = process.env.MOGRAPH_CHROME ? [{ executablePath: process.env.MOGRAPH_CHROME }] : [{}, { channel: 'chrome' }, { channel: 'msedge' }];
   for (const o of tries) try { return await pw.chromium.launch({ ...o, args: ['--font-render-hinting=none', '--disable-lcd-text'] }); } catch {}
   die('no Chromium/Chrome found — install Google Chrome or set MOGRAPH_CHROME=/path/to/chrome');
@@ -137,7 +148,7 @@ async function doctor() {
   const hint = { darwin: { ff: 'brew install ffmpeg', chrome: 'install Google Chrome', tts: '`say` is built in; for better voices: pip3 install piper-tts' }, win32: { ff: 'winget install Gyan.FFmpeg  (or: npm i --prefix <skill dir> ffmpeg-static)', chrome: 'install Google Chrome or Microsoft Edge', tts: 'Windows speech is built in; for better voices: pip install piper-tts' }, linux: { ff: 'sudo apt install ffmpeg', chrome: 'install Google Chrome, or: npx playwright install chromium', tts: 'pip3 install piper-tts  (or: sudo apt install espeak-ng)' } }[os_] || {};
   const nv = +process.versions.node.split('.')[0];
   (nv >= 18 ? ok : bad).push(`node ${process.versions.node}${nv >= 18 ? '' : ' — need 18+'}`);
-  for (const d of ['yaml', 'playwright-core']) { try { require(d); ok.push(d); } catch { bad.push(`${d} missing — npm install --prefix "${ROOT}"`); } }
+  for (const d of ['yaml', 'playwright-core']) { try { require(d); ok.push(d); } catch { bad.push(`${d} missing — cd "${ROOT}" && npm install`); } }
   let ff = null; try { ff = process.env.MOGRAPH_FFMPEG || (spawnSync('ffmpeg', ['-version']).status === 0 ? 'ffmpeg' : require('ffmpeg-static')); } catch {}
   if (ff && spawnSync(ff, ['-version']).status === 0) ok.push('ffmpeg ' + (spawnSync(ff, ['-version']).stdout.toString().match(/version (\S+)/) || [])[1]); else bad.push('ffmpeg missing — ' + hint.ff);
   try { const pw = require('playwright-core'); let b = null; for (const o of process.env.MOGRAPH_CHROME ? [{ executablePath: process.env.MOGRAPH_CHROME }] : [{}, { channel: 'chrome' }, { channel: 'msedge' }]) { try { b = await pw.chromium.launch(o); break; } catch {} } if (b) { ok.push('browser ' + b.version()); await b.close(); } else bad.push('no Chrome/Edge/Chromium — ' + hint.chrome); } catch {}

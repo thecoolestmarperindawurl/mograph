@@ -67,13 +67,9 @@ claude plugin marketplace add thecoolestmarperindawurl/mograph
 claude plugin install mograph@mograph
 ```
 
-Lần đầu làm video, agent sẽ tự chạy `npm install` trong thư mục skill (lệnh cài cụ thể được in ra nếu thiếu).
+Lần đầu chạy, CLI tự cài 2 dependency npm vào thư mục skill (khoảng 10 giây).
 
-**Cách 2 — skill đơn lẻ**: chép thư mục `skills/motion-video` vào `~/.claude/skills/`, rồi cài dependency một lần:
-
-```bash
-npm install --prefix ~/.claude/skills/motion-video
-```
+**Cách 2 — skill đơn lẻ**: chép thư mục `skills/motion-video` vào `~/.claude/skills/`. Dependency cũng tự cài ở lần chạy đầu.
 
 ## Dùng
 

@@ -8,7 +8,7 @@ description: Create or edit motion graphic videos (explainers, shorts/reels/TikT
 You write a short YAML **spec**; the engine owns layout, animation, timing and beat sync. Never write HTML/CSS/JS or
 animation code for a video — that burns tokens and breaks consistency.
 
-CLI: `node <dir of this SKILL.md>/scripts/mograph.mjs` (below: `mg`). First run on a machine: `npm install --prefix <dir of this SKILL.md>`.
+CLI: `node <dir of this SKILL.md>/scripts/mograph.mjs` (below: `mg`). The first command installs its npm dependencies by itself.
 Needs Node 18+, Google Chrome/Edge (or `MOGRAPH_CHROME`), ffmpeg. If anything fails to start, run `mg doctor` — it prints what is missing and the install command for this OS.
 
 ## Workflow — 7 steps, in order. Each step is the cheapest check that can catch its problem.

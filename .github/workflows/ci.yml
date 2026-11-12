@@ -26,8 +26,6 @@ jobs:
       - name: Install ffmpeg (Windows)
         if: runner.os == 'Windows'
         run: choco install ffmpeg -y --no-progress
-      - name: Install skill dependencies
-        run: npm install --prefix skills/motion-video --no-audit --no-fund
       - name: Doctor
         run: node skills/motion-video/scripts/mograph.mjs doctor
       - name: Lint every example

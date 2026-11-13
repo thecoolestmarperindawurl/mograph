@@ -111,6 +111,8 @@ function report(r, info) {
     }
     if (r.voice) { const sc = r.spec.scenes.filter(x => x._vo); const snap = sc.reduce((a, x) => a + (x._vo.cues[0]?.snapped || 0), 0) / sc.length; out.push(`🎙 ${r.voice.engine} · ${sc.length} voice line(s) · ${sc.reduce((a, x) => a + x._vo.dur, 0).toFixed(1)}s speech · captions ${m.captions === false ? 'off' : `on, ${Math.round(snap * 100)}% of phrase breaks matched to pauses`}`); }
     if (info.beat) out.push(`♪ ${m.music || 'audio'} ${(60 / info.beat.p).toFixed(1)} bpm · cuts every ${info.beat.n} beat(s) = ${(info.beat.p * info.beat.n).toFixed(2)}s${info.beat.conf != null ? ` · detection confidence ${info.beat.conf}${info.beat.conf < 0.15 ? ' (LOW — check by ear or set meta.bpm)' : ''}${info.beat.alt && info.beat.alt.length ? ` · could also be ${info.beat.alt.join(' or ')} bpm — if cuts feel rushed or slow, set meta.bpm` : ''}` : ''}`);
+    const clips = r.spec.scenes.some(x => x._frames), est = (fps, k) => Math.round(info.total * fps * k * (info.load || 1) * (clips ? 1.6 : 1) * (4 / Math.max(1, Math.min(4, os.cpus().length))) + 8);
+    out.push(`⏱ render ≈ ${est(m.fps, 0.045)}s full · ≈ ${est(Math.min(15, m.fps), 0.03)}s --draft on this machine — if over ~100s run it in the background (or a 10-min timeout) and wait for it to finish; do not poll`);
     if (m.max && info.total > m.max) out.push(`WARN total ${info.total}s exceeds meta.max ${m.max}s — cut scenes or set pace < 1`);
   }
   for (const w of r.warns) out.push('WARN ' + w);
@@ -189,8 +191,10 @@ async function main() {
     if (cmd === 'remix') {
       // rows = variants (look × seed), columns = scenes at their settled frame; one image to pick a direction from
       const { LOOKS } = await import('./schema.mjs');
-      const looks = opt.looks ? String(opt.looks).split(',') : r.spec.meta.look ? [r.spec.meta.look] : ['clean', 'bold', 'kinetic', 'editorial'];
-      const seeds = opt.seeds ? String(opt.seeds).split(',').map(Number) : looks.length > 1 ? [r.spec.meta.seed ?? 1] : [1, 2, 3];
+      // default: the spec's own look first, then three contrasting looks; --seeds explores variations of one look instead
+      const cur = r.spec.meta.look, others = ['bold', 'kinetic', 'editorial', 'cinematic', 'playful', 'clean'].filter(l => l !== cur);
+      const looks = opt.looks ? String(opt.looks).split(',') : opt.seeds && cur ? [cur] : [...(cur ? [cur] : []), ...others].slice(0, 4);
+      const seeds = opt.seeds ? String(opt.seeds).split(',').map(Number) : [r.spec.meta.seed ?? 1];
       for (const l of looks) if (!LOOKS[l]) die(`unknown look "${l}" (${Object.keys(LOOKS).join(', ')})`);
       const portrait = r.spec.meta.h > r.spec.meta.w, tw = portrait ? 150 : 250, scale = tw / r.spec.meta.w;
       const want = pickScenes(opt.scenes || '1-' + Math.min(r.spec.scenes.length, portrait ? 6 : 4), r.spec.scenes.length), rows = [];
@@ -260,6 +264,7 @@ async function main() {
     const args = ['-y', '-loglevel', 'error', '-f', 'image2pipe', '-framerate', String(fps), '-c:v', 'mjpeg', '-i', '-',
       ...(audio ? ['-i', audio, '-c:a', 'aac', '-b:a', '192k', '-t', String(info.total)] : []),
       '-c:v', 'libx264', '-preset', draft ? 'veryfast' : 'medium', '-crf', draft ? '26' : '17', '-pix_fmt', 'yuv420p', '-movflags', '+faststart', out];
+    const final = args[args.length - 1], part = final.replace(/(\.mp4)?$/i, '.part.mp4'); args[args.length - 1] = part;
     const enc = spawn(ff, args, { stdio: ['pipe', 'inherit', 'inherit'] });
     const done = new Promise((res, rej) => enc.on('close', c => (c ? rej(new Error('ffmpeg exited ' + c)) : res())));
     const total = Math.round(info.total * fps), t0 = Date.now();
@@ -272,6 +277,7 @@ async function main() {
       if (process.stdout.isTTY) process.stdout.write(`\r${f}/${total}`);
     }
     enc.stdin.end(); await done;
+    fs.renameSync(part, final);
     for (const f of tmp) fs.rmSync(f, { force: true });
     if (process.stdout.isTTY) process.stdout.write('\r');
     console.log(`video → ${out} · ${info.total}s · ${total} frames@${fps} · ${(fs.statSync(out).size / 1e6).toFixed(1)}MB · ${((Date.now() - t0) / 1000).toFixed(0)}s render`);

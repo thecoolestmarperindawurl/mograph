@@ -20,7 +20,8 @@ Needs Node 18+, Google Chrome/Edge (or `MOGRAPH_CHROME`), ffmpeg. If anything fa
    Wide product shots/screenshots → `image`. Video files → `clip`. Transparent PNG/SVG → `logo`, `mascot`, `avatar`.
 3. **Pick motion.** Choose the style, then one scene type per beat from the table below, then a **look** (one word, below).
    Do not hand-pick animations per scene: the look + `seed` vary them for you. To offer the user a choice, run
-   `mg remix <spec>` — ONE image comparing looks (rows) across scenes; they answer "B", you set `look`/`seed`. Never ask for
+   `mg remix <spec>` — ONE image: rows = the spec's look + 3 contrasting looks, across the first scenes; they answer "B", you set `look`
+   (and `seed`) in one Edit. `--looks a,b,c` to choose rows, `--seeds 1,2,3` for variations of the current look. Never ask for
    per-scene effects unless the user names one.
 4. **Write `<name>.yaml`.** Omit `dur` (auto-timed). `mg catalog <type>` only for a type whose fields you are unsure of.
 5. **Add sound.** Music: `music: upbeat | chill | cinematic | hiphop | drive` (built-in, original, exact BPM) or `audio: path`
@@ -32,7 +33,9 @@ Needs Node 18+, Google Chrome/Edge (or `MOGRAPH_CHROME`), ffmpeg. If anything fa
    Over `max`: set `pace: 0.8`, trim clips, shorten voice lines, or drop a scene. Up to ~2s over is fine — say so instead of looping.
 7. **`mg sheet <spec>`** — ONE contact-sheet image of every scene; look once. After fixes re-check only what changed
    (`--scenes 3,5`). A `recap` frame looks empty in the sheet — that is its end state, not a bug. `sheet` and `render` re-run lint themselves.
-   Then **`mg render <spec>`** → MP4 (`--draft` for a quick preview, `--size 16:9` for another ratio).
+   Then **`mg render <spec>`** → MP4 (`--draft` for a quick preview, `--size 16:9` for another ratio). Lint prints `⏱ render ≈ Ns`:
+   if that is over ~100s, start render in the background (or with a 10-minute timeout) and wait for its completion — never poll it,
+   and ignore `*.part.mp4` (the file appears under its real name only when finished).
 
 Revisions: Edit the specific YAML lines (never rewrite the file) → lint → `sheet --scenes N` → render.
 Do not read rendered frames or the video back; do not open engine source unless fixing the engine. You cannot hear audio — say so, and let the user judge the music.
@@ -79,7 +82,7 @@ unless it is a product series.
 ## Spec cheatsheet
 
 ```yaml
-meta: {size: "9:16", look: bold, theme: midnight, music: upbeat, brand: "@handle", max: 45}
+meta: {size: "9:16", look: bold, seed: 1, theme: midnight, music: upbeat, brand: "@handle", max: 45}
 scenes:
   - hook: "AI Agent *không phải* chatbot"      # *word* = accent; first key = scene type
     kicker: AI Agent 101

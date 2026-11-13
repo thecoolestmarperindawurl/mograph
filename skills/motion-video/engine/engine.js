@@ -725,7 +725,7 @@
     }
     S = { scenes, total: start, blobs, prog, W, H, desk, world, blur, mascot, marq, cap, ov, fx, fxl, grainT, shapes, bgAnim, layer, stage, mw: marq ? marq.querySelector('span').getBoundingClientRect().width : 0, beat: bt && m.pulse !== false ? bt : null, bg };
     await seek(0);
-    return { total: +start.toFixed(2), w: W, h: H, fps: m.fps, scenes: info, beat: bt };
+    return { total: +start.toFixed(2), w: W, h: H, fps: m.fps, scenes: info, beat: bt, load: +(1 + ({ grid: 0.1, dots: 0.1, stripes: 0.6, halftone: 0.3, aurora: 0.3, mesh: 0.1 }[bgk] || 0) + [...fx].reduce((a, f) => a + ({ grain: 0.55, leak: 0.25, scan: 0.3, vignette: 0.1, rgb: 0.1, shapes: 0.2, shake: 0.1 }[f] || 0), 0)).toFixed(2) };
   }
 
   // camera zoom while a scene holds: slow push-in; recap zooms back in as cards collapse
@@ -777,11 +777,11 @@
       if (!S.beat) { let dmin = 9; for (const sc of scenes) dmin = Math.min(dmin, Math.abs(t - sc.start)); kk = Math.exp(-dmin * 9); }
       if (fx.has('shake')) { const tg = S.desk ? S.blur.view : S.layer, f = Math.floor(t * 30), a = U * (0.05 + 0.22 * kk); tg.style.transform = `translate(${((noise('sx', f) - 0.5) * a).toFixed(1)}px,${((noise('sy', f) - 0.5) * a).toFixed(1)}px) rotate(${((noise('sr', f) - 0.5) * 0.5 * kk).toFixed(2)}deg)`; }
       if (fx.has('rgb')) S.stage.style.setProperty('--rgb', (kk * 0.07 * U).toFixed(1) + 'px');
-      if (S.grainT.length) { const g = S.fxl.querySelector('.grain'), f = Math.floor(t * 24); g.style.backgroundImage = S.grainT[f % 4]; g.style.backgroundPosition = `${Math.floor(noise('gx', f) * 192)}px ${Math.floor(noise('gy', f) * 192)}px`; }
+      if (S.grainT.length) { const g = S.fxl.querySelector('.grain'), f = Math.floor(t * 12); g.style.backgroundImage = S.grainT[f % 4]; g.style.backgroundPosition = `${Math.floor(noise('gx', f) * 192)}px ${Math.floor(noise('gy', f) * 192)}px`; }
       if (fx.has('leak')) { const [a, b] = S.fxl.querySelectorAll('.leak i'); a.style.transform = `translate(${(-0.3 + 0.25 * Math.sin(t * 0.4)) * W}px,${(-0.2 + 0.1 * Math.cos(t * 0.33)) * H}px)`; b.style.transform = `translate(${(0.45 + 0.2 * Math.cos(t * 0.31)) * W}px,${(0.5 + 0.12 * Math.sin(t * 0.27)) * H}px)`; a.style.opacity = (0.35 + 0.25 * Math.sin(t * 0.9)).toFixed(3); }
       if (fx.has('scan')) S.fxl.querySelector('.scan').style.backgroundPosition = `0 ${((t * 40) % 400).toFixed(1)}px`;
       for (const o of S.shapes) o.e.style.transform = `translate(${((o.x + 0.04 * Math.sin(t * o.v + o.ph)) * W).toFixed(1)}px,${((((o.y - t * 0.012 * o.v) % 1) + 1) % 1 * H).toFixed(1)}px) rotate(${(o.r + t * 25 * o.v).toFixed(1)}deg) scale(${(1 + 0.25 * kk).toFixed(3)})`;
-      if (S.bgAnim) { const c = S.bgAnim.className; if (c === 'stripes') S.bgAnim.style.backgroundPosition = `${(t * 0.8 * U).toFixed(1)}px 0`; else if (c === 'halftone') S.bgAnim.style.transform = `translate(${(Math.sin(t * 0.3) * U).toFixed(1)}px,${(-t * 0.25 * U % (1.2 * U)).toFixed(1)}px)`; else { const [a, b] = S.bgAnim.children; a.style.transform = `translateX(${(Math.sin(t * 0.25) * 0.15 * W).toFixed(1)}px) skewY(${(-8 + 4 * Math.sin(t * 0.3)).toFixed(2)}deg)`; b.style.transform = `translateX(${(Math.cos(t * 0.21) * 0.18 * W).toFixed(1)}px) skewY(${(6 + 4 * Math.cos(t * 0.27)).toFixed(2)}deg)`; } }
+      if (S.bgAnim) { const c = S.bgAnim.className; if (c === 'stripes') S.bgAnim.style.transform = `translateX(${((t * 0.8 * U) % (2.687 * U)).toFixed(1)}px)`; else if (c === 'halftone') S.bgAnim.style.transform = `translate(${(Math.sin(t * 0.3) * U).toFixed(1)}px,${(-t * 0.25 * U % (1.2 * U)).toFixed(1)}px)`; else { const [a, b] = S.bgAnim.children; a.style.transform = `translateX(${(Math.sin(t * 0.25) * 0.15 * W).toFixed(1)}px) skewY(${(-8 + 4 * Math.sin(t * 0.3)).toFixed(2)}deg)`; b.style.transform = `translateX(${(Math.cos(t * 0.21) * 0.18 * W).toFixed(1)}px) skewY(${(6 + 4 * Math.cos(t * 0.27)).toFixed(2)}deg)`; } }
     }
     const pend = PEND; PEND = [];
     return pend.length ? Promise.all(pend) : undefined;

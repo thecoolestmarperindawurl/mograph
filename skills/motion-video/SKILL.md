@@ -21,7 +21,8 @@ Needs Node 18+, Google Chrome/Edge (or `MOGRAPH_CHROME`), ffmpeg. If anything fa
 3. **Pick motion.** Choose the style, then one scene type per beat from the table below, then a **look** (one word, below).
    Do not hand-pick animations per scene: the look + `seed` vary them for you. To offer the user a choice, run
    `mg remix <spec>` — ONE image: rows = the spec's look + 3 contrasting looks, across the first scenes; they answer "B", you set `look`
-   (and `seed`) in one Edit. `--looks a,b,c` to choose rows, `--seeds 1,2,3` for variations of the current look. Never ask for
+   (and `seed`) in one Edit. `--looks a,b,c` to choose rows, `--seeds 1,2,3` for variations of the current look. If you must choose
+   yourself, pick the row that fits the brief and say which; no edit is needed when it is already the spec's look/seed. Never ask for
    per-scene effects unless the user names one.
 4. **Write `<name>.yaml`.** Omit `dur` (auto-timed). `mg catalog <type>` only for a type whose fields you are unsure of.
 5. **Add sound.** Music: `music: upbeat | chill | cinematic | hiphop | drive` (built-in, original, exact BPM) or `audio: path`
@@ -121,6 +122,7 @@ scenes:
 
 ## Writing rules that decide quality
 
+- Long URLs and handles go in `sub` (hook, cta, sting take `sub`), not in the headline.
 - Hook ≤ 8 words with one `*accent*`. Titles ≤ 6 words. Items ≤ 6 words; detail goes after `|`. Kicker ≤ 3 words.
 - 3–4 items per scene; split rather than shrink. `fitNN%` under 80 in lint = too much text — cut words.
 - Voice lines ≤ 2 short sentences per scene; captions are the narration, so write it the way it should read.

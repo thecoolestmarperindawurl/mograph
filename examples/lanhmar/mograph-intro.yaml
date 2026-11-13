@@ -1,35 +1,26 @@
-# Video giới thiệu mograph cho thẻ Kho báu (lanhmar.id.vn). Mọi con số đều là số đo thật, ghi nguồn trong scene.
-meta: {size: "1280x720", style: desk, layout: zigzag, theme: lanhmar, music: upbeat, marquee: "MOGRAPH ★ LANHMAR ★ KHO BÁU ★", cursor: Bạn, pace: 0.75, max: 50}
+# Video giới thiệu mograph 0.6 cho thẻ Kho báu (lanhmar.id.vn), dựng bằng chính mograph.
+meta: {size: "1280x720", look: bold, seed: 1, theme: lanhmar, music: upbeat, marquee: "MOGRAPH ★ LANHMAR ★ KHO BÁU ★", max: 50}
 scenes:
-  - hook: "Video motion graphic từ *vài dòng chữ*"
-    kicker: Plugin Claude Code
-    sub: mograph · miễn phí, mã nguồn mở
-    logo: assets/logo-lanhmar.png
-  - term: ["$ /plugin marketplace add thecoolestmarperindawurl/mograph", "$ /plugin install mograph@mograph", "√ Successfully installed plugin: mograph@mograph"]
-    title: Cài bằng *2 lệnh*
-    name: Claude Code
-  - chat: ["u: Làm video 30 giây giới thiệu Kho báu", "t: mograph lint kho-bau.yaml", "t: mograph render kho-bau.yaml", "a: Xong: kho-bau.mp4, 33 giây, có nhạc."]
+  - kinetic: ["Một *ý tưởng*", "Vài dòng kịch bản", "Agent *dựng video*", "Nhạc khớp *beat*"]
+  - sting: assets/logo-lanhmar.png
+    sub: Plugin *mograph* cho Claude Code
+  - chat: ["u: Làm video 30 giây giới thiệu Kho báu, trẻ trung", "t: mograph remix kho-bau.yaml", "t: mograph render kho-bau.yaml", "a: Xong: kho-bau.mp4, có nhạc khớp beat."]
     title: Bạn giao việc, *agent dựng*
-    win: Claude Code
-  - clip: assets/kho-bau-demo.mp4
+  - device: assets/kho-bau-demo.mp4
+    frame: laptop
     to: 6
     kicker: Kết quả thật
     title: Video Kho báu
-    caption: Dựng bằng mograph, nhạc khớp beat
-    win: kho-bau.mp4
-  - check: ["Nhạc gốc, cắt cảnh khớp beat", "Giọng đọc kèm phụ đề", "Footage, ảnh, sơ đồ động", "Một spec ra cả 9:16 và 16:9"]
-    title: Có sẵn trong engine
-    win: mograph
-  - stat: "7"
-    kicker: Tiết kiệm token
-    label: lượt gọi model cho một video 33 giây
-    src: "Đo 11/11/2026 · Claude Sonnet · 1 lần chạy"
-  - recap: true
-  - ticket: "Dùng *miễn phí*"
-    kicker: Kho báu · LANHMAR
-    name: mograph
-    note: Plugin Claude Code dựng video motion graphic
-    rows: {Cài đặt: 2 lệnh /plugin, Mã nguồn: GitHub · MIT}
-    pills: [Miễn phí, Mã nguồn mở]
-    code: LANHMAR ★ KHO BÁU
-    logo: assets/logo-lanhmar.png
+  - grid: [assets/look-bold.jpg, assets/look-cinematic.jpg, assets/look-clean.jpg, assets/look-playful.jpg]
+    title: 1 kịch bản, *7 phong cách*
+    caption: Đổi bằng một từ trong kịch bản
+  - stat: "26"
+    kicker: Dựng sẵn
+    label: kiểu cảnh, 12 kiểu chữ động, 13 chuyển cảnh
+    src: mograph 0.6
+  - term: ["$ /plugin marketplace add thecoolestmarperindawurl/mograph", "$ /plugin install mograph@mograph", "√ Successfully installed plugin: mograph@mograph"]
+    title: Cài bằng *2 lệnh*
+    name: Claude Code
+  - cta: Dùng *miễn phí*
+    sub: Mã nguồn mở trên GitHub
+    button: Kho báu · lanhmar.id.vn

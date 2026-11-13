@@ -383,3 +383,5 @@ em.hl{background-image:linear-gradient(transparent 58%,color-mix(in srgb,var(--a
 /* perf: the moving background lives on its own composited layers, so content is not repainted every frame */
 .mg-bg{contain:strict;will-change:transform}
 .mg-bg>*{will-change:transform}
+.land .mosaic.tall,.square .mosaic.tall{grid-template-columns:repeat(var(--n,4),1fr)}.mosaic.tall.n2{--n:2}.mosaic.tall.n3{--n:3}.mosaic.tall.n5{--n:5}.mosaic.tall.n6{--n:3}
+.mosaic.tall .mc{aspect-ratio:9/16}.land .mosaic.tall{width:min(100%,24em);margin:0 auto}.port .mosaic.tall{grid-template-columns:repeat(2,1fr)}

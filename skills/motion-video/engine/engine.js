@@ -502,7 +502,7 @@
       c.tl.add(d, { opacity: [0, 1], y: [2.2, 0], rotate: [kind === 'phone' ? -5 : 0, 0] }, t, 0.8, 'out5');
       const t0 = t + 0.9, sd = +s.scroll || 3.6;
       if (F && F.length) { img.src = F[0]; c.tl.live(lt => { const k = Math.max(0, Math.min(F.length - 1, Math.floor((lt - t0) * fps))); if (img._k !== k) { img._k = k; img.src = F[k]; c.pending(img); } }); s._clipAt = t0; }
-      else { img.src = s.device; if (s.scroll !== false) c.tl.live(lt => { const over = img.offsetHeight - scr.clientHeight; img.style.transform = over > 4 ? `translateY(${(-over * ease.inout(clamp((lt - t0) / sd))).toFixed(1)}px)` : ''; }); }
+      else { img.src = s.device; if (s.scroll !== false) c.tl.live(lt => { const over = img.offsetHeight - scr.clientHeight; if (over > 4) img.style.transform = `translateY(${(-over * ease.inout(clamp((lt - t0) / sd))).toFixed(1)}px)`; else if (!img._fit) { img._fit = 1; img.style.height = '100%'; img.style.objectFit = 'cover'; img.style.objectPosition = 'top'; } }); }
       if (s.caption) c.up(c.h('p', 'sub', rich(s.caption)), t + 0.5);
       return { end: t0, read: 0.3, min: F && F.length ? t0 + (s._len || 0) + 0.25 : t0 + sd + 0.6 };
     },
@@ -656,6 +656,7 @@
     await document.fonts.ready;
     await Promise.all([...stage.querySelectorAll('img')].map(im => im.decode().catch(() => { im.dataset.err = 1; })));
 
+    document.querySelectorAll('.mosaic').forEach(g => { const im = [...g.querySelectorAll('img')]; if (im.filter(i => i.naturalHeight > i.naturalWidth * 1.15).length * 2 > im.length) g.classList.add('tall'); });
     // auto-fit: shrink a scene's type scale until its content fits the safe area
     const over = sc => (sc.frame || sc.inner).getBoundingClientRect().height > sc.cbox.clientHeight + 1 || sc.inner.scrollWidth > sc.inner.clientWidth + 1 || [...sc.inner.querySelectorAll('h1,h2,.tkl')].some(e => e.scrollWidth > e.clientWidth + 1);
     let start = 0;

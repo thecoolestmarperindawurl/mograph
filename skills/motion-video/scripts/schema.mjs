@@ -1,6 +1,12 @@
 // Single source of truth for the spec: used by `lint` (validation) and `catalog` (on-demand docs).
 // main: shape of the value under the type key. str | list | pair | map
 import { STYLES } from './audio.mjs';
+// effect vocabulary (the engine implements each one; names are validated here)
+export const ANIMS = { rise: 'words rise out of a blur (default)', pop: 'words pop with overshoot', stamp: 'words slam down from big', blur: 'line focuses in', mask: 'each word slides up out of a hidden line', chars: 'letters stagger in', wave: 'letters bounce in', split: 'letters fly in from both sides', type: 'typewriter', scramble: 'letters decode from random glyphs', glitch: 'RGB-split jitter then settle', highlight: 'rise + marker sweep behind *accent*' };
+export const TRANS = { fade: 'fade up (default)', slide: 'push sideways', zoom: 'zoom through', blur: 'defocus', whip: 'fast whip-pan with motion blur', punch: 'zoom punch-in', circle: 'iris close / open', diagonal: 'slanted wipe', wipe: 'colour panel sweeps across', split: 'two panels close then open', flash: 'white flash on the cut', glitch: 'RGB slices', cut: 'hard cut' };
+export const FX = { grain: 'film grain', leak: 'warm light leak', vignette: 'dark edges', scan: 'scanlines', shake: 'handheld shake, kicks on the beat', rgb: 'colour split on headlines, kicks on the beat', shapes: 'floating geometric shapes' };
+export const BGS = ['glow', 'grid', 'dots', 'plain', 'stripes', 'halftone', 'aurora', 'mesh'];
+export const LOOKS = { clean: 'rise/mask/blur · fade/slide/zoom · glow — calm, corporate (default feel)', bold: 'pop/stamp/chars · punch/whip/flash · stripes + shapes + shake — short-form social energy', kinetic: 'mask/chars/stamp · whip/split/punch · plain + grain — typography-led', glitch: 'scramble/glitch/type · glitch/cut/whip · grid + scanlines + RGB — tech, AI, gaming (use sparingly)', cinematic: 'blur/mask/rise · fade/circle/zoom · aurora + vignette + grain + light leak, slower — brand stories', editorial: 'mask/highlight/type · diagonal/split/slide · halftone + grain — magazine, explainers', playful: 'wave/pop/split · circle/flash/punch · mesh + shapes — kids, lifestyle, fun' };
 export const SCENES = {
   hook: { d: 'Big opening/section headline, centered.', main: 'str', max: 14, f: { kicker: 'small label above', sub: 'one supporting line' }, ex: '- hook: "AI Agent *không phải* chatbot"\n  sub: Nó tự lập kế hoạch và hành động' },
   bullets: { d: 'Title + staggered numbered cards. Item "Label|detail" adds a muted second line.', main: 'list', items: [2, 5], f: { title: '', kicker: '' }, ex: '- bullets: [Hiểu mục tiêu, "Dùng tool|search, code, API", Tự kiểm tra]\n  title: Agent làm được gì' },
@@ -13,7 +19,13 @@ export const SCENES = {
   quote: { d: 'Pull quote.', main: 'str', max: 30, f: { by: 'attribution' }, ex: '- quote: "Agent là model dùng tool trong một vòng lặp"\n  by: …' },
   bars: { d: 'Horizontal bar chart from a map label→number. Largest bar highlighted (override with hi).', main: 'map', items: [2, 6], f: { title: '', unit: 'suffix e.g. "%"', hi: 'label to highlight', src: 'source line (required for real data)', kicker: '' }, ex: '- bars: {Nhóm A: 42, Nhóm B: 68}\n  unit: "%"\n  src: "Nguồn: …"' },
   clip: { d: 'Video footage (mp4/mov/webm) playing inside the card. from/to trim seconds; sound: true (or 0–1) mixes its audio; fill: true = full-screen footage with title over it. Scene lasts at least the clip length.', main: 'str', f: { title: '', caption: '', kicker: '', from: 'start second', to: 'end second', sound: 'true or volume 0–1', fill: 'true = full-bleed background', max: 'cap clip length, default 12' }, ex: '- clip: assets/demo.mp4\n  from: 2\n  to: 8\n  title: Xem thực tế' },
-  image: { d: 'Framed image/screenshot with slow zoom. Path relative to the spec file.', main: 'str', f: { title: '', caption: '', kicker: '' }, ex: '- image: assets/screenshot.png\n  caption: Giao diện thực tế' },
+  kinetic: { d: 'Kinetic typography: 2–8 short phrases, each fills the screen for one beat slot with its own animation and layout. Best opener or hype moment.', main: 'list', items: [2, 8], f: {}, ex: '- kinetic: ["Bạn có *1 ý tưởng*", "Agent viết kịch bản", "Engine *dựng video*", "Xong trong 2 phút"]' },
+  split: { d: 'Split screen: image fills one half edge to edge, text on the other half (top/bottom on 9:16).', main: 'str', f: { side: 'left (default) | right', title: '', kicker: '', sub: '', points: 'list of 2–3 short items' }, ex: '- split: assets/product.jpg\n  title: Sửa PDF *như Word*\n  points: [Giữ phông, Giữ bố cục]' },
+  grid: { d: 'Photo mosaic of 2–6 images popping in with slow zoom.', main: 'list', items: [2, 6], f: { title: '', kicker: '', caption: '' }, ex: '- grid: [assets/a.jpg, assets/b.jpg, assets/c.jpg, assets/d.jpg]\n  title: Khoảnh khắc workshop' },
+  device: { d: 'Phone or laptop mockup. A tall screenshot scrolls inside; a video file plays inside.', main: 'str', f: { frame: 'phone | laptop (default by ratio)', scroll: 'seconds of scrolling, or false', title: '', kicker: '', caption: '' }, ex: '- device: assets/app-screenshot.png\n  frame: phone\n  title: Giao diện thật' },
+  sting: { d: 'Logo sting: ring draws, rays burst, logo pops, tagline follows. Opener or closer.', main: 'str', f: { sub: 'tagline' }, ex: '- sting: assets/logo.png\n  sub: Học và làm cùng *AI*' },
+  timeline: { d: 'Timeline: a line draws while 2–5 milestones "When|What" pop in order.', main: 'list', items: [2, 5], f: { title: '', kicker: '' }, ex: '- timeline: ["2024|Bắt đầu học AI", "2025|Ra mắt công cụ", "2026|Mở cộng đồng"]' },
+  image: { d: 'Framed image/screenshot with slow zoom. Path relative to the spec file.', main: 'str', f: { title: '', caption: '', kicker: '', fill: 'true = full-screen photo with the title over it' }, ex: '- image: assets/screenshot.png\n  caption: Giao diện thực tế' },
   cta: { d: 'Closing call to action, centered.', main: 'str', max: 12, f: { sub: '', button: 'pill button label', handle: '@account / url' }, ex: '- cta: Follow để học *AI Agent* mỗi ngày\n  button: Follow\n  handle: "@kenh"' },
   profile: { d: 'Person card: avatar (initials or image) + name + typed quote.', main: 'str', f: { role: 'small label above the name', quote: 'typed out', avatar: 'image path (else initials)' }, ex: '- profile: Hưng Kescy\n  role: Diễn giả\n  quote: Cái gì máy làm tốt thì người đừng làm' },
   check: { d: 'Checklist that a cursor ticks one by one. Item "Label|detail". meta.cursor sets the cursor name tag.', main: 'list', items: [1, 5], f: { title: '', kicker: '' }, ex: '- check: ["Thế nào là 1 Skill tốt?", "6 bước giải quyết vấn đề|Nâng cao"]\n  title: Đi làm với AI' },
@@ -27,7 +39,7 @@ export const META = {
   size: '9:16 (default) | 16:9 | 1:1 | 4:5 | WxH',
   fps: '30 default',
   theme: 'midnight (default) | paper | terminal | sunset | meadow | lanhmar, or {base, bg, fg, mut, ac, ac2, card, line, font}',
-  bg: 'glow (default) | grid | dots | plain',
+  bg: BGS.join(' | ') + ' (default from the look, else glow)',
   pace: 'reading-time multiplier, 1 default; 0.8 = faster cuts',
   brand: 'watermark text at the bottom, e.g. "@handle"',
   progress: 'true = progress bar on top',
@@ -41,7 +53,11 @@ export const META = {
   style: 'slides (default: one scene per cut) | desk (scenes are window cards on one canvas; camera whip-pans between them)',
   mascot: 'desk only: image path of a character that perches on the active card and hops along',
   marquee: 'text for a scrolling band on top, e.g. "LANHMAR ★ DIGITAL MARKETER ★"',
-  transition: 'slides only: fade (default) | slide | zoom | blur | wipe | cut (per scene: tr)',
+  look: 'one word that sets the whole motion language: ' + Object.keys(LOOKS).join(' | ') + ' — the engine varies animations/transitions per scene from it. `mograph catalog looks`',
+  seed: 'any number: reshuffles which variation of the look each scene gets (try another seed instead of hand-editing)',
+  anim: 'force one text animation for every scene (normally leave to the look): ' + Object.keys(ANIMS).join(' | '),
+  fx: 'overlay effects list, overrides the look: ' + Object.keys(FX).join(' | ') + ', e.g. [grain, leak]; [] = none',
+  transition: 'slides only, overrides the look: ' + Object.keys(TRANS).join(' | ') + ' (per scene: tr)',
   layout: 'desk only: row (default) | column | grid | zigzag — how cards sit on the canvas, so the camera moves in 2D',
   tts: 'voice engine: auto (default) | piper | say | sapi | espeak',
   voice: 'voice name for the engine (piper e.g. vi_VN-vais1000-medium, say e.g. Linh)',
@@ -50,7 +66,7 @@ export const META = {
   capwords: 'max words per caption line, 7 default',
   cursor: 'name tag on the cursor in `check` scenes, e.g. "Bạn"',
 };
-const COMMON = ['dur', 'win', 'logo', 'voice', 'vo', 'tr'];
+const COMMON = ['dur', 'win', 'logo', 'voice', 'vo', 'tr', 'anim', 'lower'];
 const SIZES = { '9:16': [1080, 1920], '16:9': [1920, 1080], '1:1': [1080, 1080], '4:5': [1080, 1350] };
 const wc = s => String(s).split(/\s+/).filter(Boolean).length;
 
@@ -64,7 +80,11 @@ export function normalize(raw) {
   if (sz.length !== 2) errors.push(`meta.size "${meta.size}" invalid`); else[meta.w, meta.h] = sz;
   if (meta.w % 2 || meta.h % 2) errors.push('meta.size: width and height must be even');
   if (meta.music && !STYLES[meta.music]) errors.push(`meta.music "${meta.music}" unknown (${Object.keys(STYLES).join(', ')})`);
-  if (meta.transition && !['fade', 'slide', 'zoom', 'blur', 'wipe', 'cut'].includes(meta.transition)) errors.push('meta.transition must be fade|slide|zoom|blur|wipe|cut');
+  if (meta.transition && !TRANS[meta.transition]) errors.push(`meta.transition "${meta.transition}" unknown (${Object.keys(TRANS).join('|')})`);
+  if (meta.look && !LOOKS[meta.look]) errors.push(`meta.look "${meta.look}" unknown (${Object.keys(LOOKS).join('|')})`);
+  if (meta.anim && !ANIMS[meta.anim]) errors.push(`meta.anim "${meta.anim}" unknown (${Object.keys(ANIMS).join('|')})`);
+  if (meta.bg && !BGS.includes(meta.bg)) errors.push(`meta.bg "${meta.bg}" unknown (${BGS.join('|')})`);
+  for (const f of [].concat(meta.fx || [])) if (!FX[f]) errors.push(`meta.fx "${f}" unknown (${Object.keys(FX).join('|')})`);
   if (meta.layout && !['row', 'column', 'grid', 'zigzag'].includes(meta.layout)) errors.push('meta.layout must be row|column|grid|zigzag');
   if (meta.music && meta.audio) errors.push('meta: use music OR audio, not both');
   if (meta.mascot && meta.style !== 'desk') warns.push('meta.mascot is only shown with style: desk');
@@ -86,7 +106,9 @@ export function normalize(raw) {
     if (type === 'compare' && Array.isArray(s.rows) && s.rows.some(r => !Array.isArray(r) || r.length !== 2)) errors.push(`${id} compare: each row must be [left, right]`);
     if ((type === 'stat' || type === 'bars') && !s.src) warns.push(`${id} ${type}: no src — add a source line if this is real data`);
     if (type === 'recap' && meta.style !== 'desk') errors.push(`${id} recap: needs meta.style: desk`);
-    if (s.tr && !['fade', 'slide', 'zoom', 'blur', 'wipe', 'cut'].includes(s.tr)) errors.push(`${id}: tr must be fade|slide|zoom|blur|wipe|cut`);
+    if (s.tr && !TRANS[s.tr]) errors.push(`${id}: tr "${s.tr}" unknown (${Object.keys(TRANS).join('|')})`);
+    if (s.anim && !ANIMS[s.anim]) errors.push(`${id}: anim "${s.anim}" unknown (${Object.keys(ANIMS).join('|')})`);
+    if (type === 'kinetic' && Array.isArray(v)) v.forEach((x, k) => { if (wc(x) > 6) warns.push(`${id} kinetic: phrase ${k + 1} has ${wc(x)} words, keep ≤5`); });
     if (s.vo && !s.voice) errors.push(`${id}: vo needs the matching voice: text (used for captions)`);
     if (s.dur != null && !(+s.dur > 0)) errors.push(`${id}: dur must be a positive number`);
     return { ...s, type };
@@ -95,12 +117,14 @@ export function normalize(raw) {
 }
 
 export function catalog(type) {
+  if (type === 'looks' || type === 'look') return 'LOOKS (meta.look; meta.seed reshuffles; `mograph remix <spec>` previews several in one image)\n' + Object.entries(LOOKS).map(([k, v]) => `  ${k.padEnd(9)} ${v}`).join('\n');
+  if (type === 'fx' || type === 'effects') return 'TEXT ANIMATIONS (anim)\n' + Object.entries(ANIMS).map(([k, v]) => `  ${k.padEnd(9)} ${v}`).join('\n') + '\nTRANSITIONS (tr / meta.transition, slides style)\n' + Object.entries(TRANS).map(([k, v]) => `  ${k.padEnd(9)} ${v}`).join('\n') + '\nOVERLAYS (meta.fx)\n' + Object.entries(FX).map(([k, v]) => `  ${k.padEnd(9)} ${v}`).join('\n') + '\nBACKGROUNDS (meta.bg): ' + BGS.join(', ') + '\nANY SCENE: lower: "Name|Role" adds a lower-third.';
   if (type && SCENES[type]) {
     const d = SCENES[type];
-    return `${type} (${d.main}) — ${d.d}\nfields: ${Object.entries(d.f).map(([k, v]) => k + (v ? ` (${v})` : '')).join('; ') || '—'}; dur (seconds, optional — auto if omitted); win (window title, desk style); logo (image, hook/cta/ticket); voice (narration text → speech + captions); vo (your recording of that line); tr (transition out of this scene)\n${d.ex}`;
+    return `${type} (${d.main}) — ${d.d}\nfields: ${Object.entries(d.f).map(([k, v]) => k + (v ? ` (${v})` : '')).join('; ') || '—'}; dur (seconds, optional — auto if omitted); anim / tr (override the look for this scene); lower ("Name|Role" lower-third); win (window title, desk style); logo (image, hook/cta/ticket); voice (narration text → speech + captions); vo (your recording of that line); tr (transition out of this scene)\n${d.ex}`;
   }
   return 'SCENE TYPES (first key = type; `mograph catalog <type>` for fields + example)\n'
     + Object.entries(SCENES).map(([k, d]) => `  ${k.padEnd(8)} ${d.d}`).join('\n')
     + '\nMETA\n' + Object.entries(META).map(([k, d]) => `  ${k.padEnd(8)} ${d}`).join('\n')
-    + '\nTEXT: *word* = accent color. "Label|detail" = two-line item. Omit dur → auto-timed from text length.';
+    + '\nMore: `mograph catalog looks` · `mograph catalog fx`\nTEXT: *word* = accent color. "Label|detail" = two-line item. Omit dur → auto-timed from text length.';
 }

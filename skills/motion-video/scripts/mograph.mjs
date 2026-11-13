@@ -47,6 +47,12 @@ function load(file) {
   if (r.spec) {
     const res = (o, k) => { if (!o[k] || /^(https?|file|data):/.test(o[k])) return; const p = path.resolve(dir, o[k]); if (!fs.existsSync(p)) r.errors.push(`file not found: ${o[k]}`); o[k] = pathToFileURL(p).href; };
     for (const s of r.spec.scenes) for (const k of ['image', 'logo', 'avatar']) if (k !== 'image' || s.type === 'image') res(s, k);
+    const VID = /\.(mp4|mov|webm|m4v)$/i;
+    for (const s of r.spec.scenes) {
+      for (const k of ['split', 'device', 'sting']) if (s.type === k) res(s, k);
+      if (s.type === 'grid' && Array.isArray(s.grid)) s.grid = s.grid.map(g => { const o = { g }; res(o, 'g'); return o.g; });
+      if (s.type === 'device' && VID.test(s.device)) s.clip = fileURLToPath(s.device);
+    }
     for (const s of r.spec.scenes) for (const k of s.type === 'clip' ? ['clip', 'vo'] : ['vo']) if (s[k]) { const p = path.resolve(dir, s[k]); if (!fs.existsSync(p)) r.errors.push(`file not found: ${s[k]}`); else s[k] = p; }
     res(r.spec.meta, 'mascot');
     if (r.spec.meta.audio) { r.spec.meta.audio = path.resolve(dir, r.spec.meta.audio); if (!fs.existsSync(r.spec.meta.audio)) r.errors.push(`audio not found: ${r.spec.meta.audio}`); }
@@ -67,7 +73,7 @@ function prepBeat(spec) {
 // footage frames + voiceover, before the engine measures timing
 function prepMedia(r, fps, maxW) {
   const ff = ffbin(), sp = r.spec, notes = [];
-  for (const s of sp.scenes) if (s.type === 'clip') try { prepClip(ff, s, fps, maxW); } catch (e) { r.errors.push(e.message); }
+  for (const s of sp.scenes) if (s.type === 'clip' || (s.type === 'device' && s.clip)) try { prepClip(ff, s, fps, maxW); } catch (e) { r.errors.push(e.message); }
   try { const v = prepVoices(ff, sp, r.dir); if (v) { r.voice = v; notes.push(...v.notes); } } catch (e) { r.errors.push(e.message); }
   r.warns.push(...notes);
 }
@@ -111,7 +117,7 @@ function report(r, info) {
   const bad = out.some(l => l.startsWith('ERR'));
   if (info) {
     out.unshift(`${bad ? 'FAIL' : 'OK'} ${info.scenes.length} scenes · ${info.total}s · ${info.w}x${info.h}@${info.fps} · spec ≈${tok(Math.ceil(r.txt.length / 3.6))} tokens`,
-      info.scenes.map(s => `${s.i}:${s.type} ${s.dur}s${s.fit < 1 ? ` fit${Math.round(s.fit * 100)}%` : ''}`).join(' | '));
+      info.scenes.map(s => `${s.i}:${s.type} ${s.dur}s${s.fit < 1 ? ` fit${Math.round(s.fit * 100)}%` : ''}`).join(' | ') + (r.spec.meta.look ? `\nlook ${r.spec.meta.look} · seed ${r.spec.meta.seed ?? 1} · ` + info.scenes.map(s => `${s.i}:${s.anim}/${s.tr}`).join(' ') : ''));
   }
   console.log(out.join('\n'));
   return !bad;
@@ -167,8 +173,8 @@ async function main() {
   if (cmd === 'beat') { const d = detectBeat(pos[0], ffbin()); return console.log(`${d.bpm} bpm · first beat at ${d.offset}s · confidence ${d.conf}${d.conf < 0.15 ? ' (LOW)' : ''}${d.alt.length ? ` · could also be ${d.alt.join(' or ')} bpm (other readings of the same rhythm)` : ''}`); }
   if (cmd === 'assets') return assets(pos[0] || '.');
   if (cmd === 'doctor') return doctor();
-  if (!['lint', 'sheet', 'render'].includes(cmd)) {
-    return console.log('mograph <command> <spec.yaml>\n  catalog [type]                 scene types / fields (read on demand)\n  lint <spec>                    validate + measure text fit + timing (text only, no images)\n  sheet <spec> [--scenes 2,5-6] [--frames 3] [-o sheet.jpg]   contact sheet for visual QA\n  doctor                         check node, browser, ffmpeg, voice engines (prints install hints)\n  assets <dir> [--sheet]         list images/audio with size + how to use each (text; --sheet adds one thumbnail image)\n  music --style upbeat --dur 40 -o track.wav   write a built-in track · beat <audio>   detect BPM of your own file\n  render <spec> [--draft] [--scenes 1-3] [-o out.mp4]         render video\n  any command: --size 16:9   override meta.size (same spec, another aspect ratio)');
+  if (!['lint', 'sheet', 'render', 'remix'].includes(cmd)) {
+    return console.log('mograph <command> <spec.yaml>\n  catalog [type]                 scene types / fields (read on demand)\n  lint <spec>                    validate + measure text fit + timing (text only, no images)\n  sheet <spec> [--scenes 2,5-6] [--frames 3] [-o sheet.jpg]   contact sheet for visual QA\n  doctor                         check node, browser, ffmpeg, voice engines (prints install hints)\n  assets <dir> [--sheet]         list images/audio with size + how to use each (text; --sheet adds one thumbnail image)\n  music --style upbeat --dur 40 -o track.wav   write a built-in track · beat <audio>   detect BPM of your own file\n  remix <spec> [--looks bold,kinetic,editorial] [--seeds 1,2] [--scenes 1-4] [-o f.jpg]   one image comparing looks/seeds (rows) across scenes\n  render <spec> [--draft] [--scenes 1-3] [-o out.mp4]         render video\n  any command: --size 16:9   override meta.size (same spec, another aspect ratio)');
   }
   const r = load(pos[0]);
   if (!r.spec) { report(r, null); process.exit(1); }
@@ -180,6 +186,35 @@ async function main() {
     prepMedia(r, cmd === 'render' ? (draftR ? Math.min(15, r.spec.meta.fps) : r.spec.meta.fps) : 6, cmd === 'render' && !draftR ? 1280 : 640);
     if (cmd === 'lint') { const { info } = await stagePage(br, r.spec); process.exitCode = report(r, info) ? 0 : 1; return; }
 
+    if (cmd === 'remix') {
+      // rows = variants (look × seed), columns = scenes at their settled frame; one image to pick a direction from
+      const { LOOKS } = await import('./schema.mjs');
+      const looks = opt.looks ? String(opt.looks).split(',') : r.spec.meta.look ? [r.spec.meta.look] : ['clean', 'bold', 'kinetic', 'editorial'];
+      const seeds = opt.seeds ? String(opt.seeds).split(',').map(Number) : looks.length > 1 ? [r.spec.meta.seed ?? 1] : [1, 2, 3];
+      for (const l of looks) if (!LOOKS[l]) die(`unknown look "${l}" (${Object.keys(LOOKS).join(', ')})`);
+      const portrait = r.spec.meta.h > r.spec.meta.w, tw = portrait ? 150 : 250, scale = tw / r.spec.meta.w;
+      const want = pickScenes(opt.scenes || '1-' + Math.min(r.spec.scenes.length, portrait ? 6 : 4), r.spec.scenes.length), rows = [];
+      for (const look of looks) for (const seed of seeds) {
+        const sp = JSON.parse(JSON.stringify(r.spec)); Object.assign(sp.meta, { look, seed }); delete sp.meta.anim; delete sp.meta.transition; delete sp.meta.fx; delete sp.meta.bg;
+        const { page, info } = await stagePage(br, sp, scale), cells = [];
+        for (const s of info.scenes) {
+          if (!want.has(s.i)) continue;
+          await page.evaluate(x => window.__mg.seek(x), s.start + Math.min(s.need - 0.6, s.dur - 0.5));
+          cells.push('data:image/jpeg;base64,' + (await page.screenshot({ type: 'jpeg', quality: 72 })).toString('base64'));
+        }
+        rows.push({ label: `${String.fromCharCode(65 + rows.length)} · look: ${look} · seed: ${seed}`, sub: info.scenes.filter(s => want.has(s.i)).map(s => `${s.i}:${s.anim}/${s.tr}`).join('  '), cells });
+        await page.context().close();
+      }
+      const W0 = Math.min(1480, rows[0].cells.length * (tw + 6) + 12);
+      const pg = await (await br.newContext({ viewport: { width: W0, height: 100 } })).newPage();
+      await pg.setContent(`<body style="margin:0;padding:6px;background:#111;font:600 12px system-ui;color:#ddd">${rows.map(rw => `<div style="margin:0 0 8px"><div style="padding:2px 0 4px"><b style="color:#fff">${rw.label}</b> <span style="color:#999;font-weight:500">${rw.sub}</span></div><div style="display:flex;gap:6px">${rw.cells.map(src => `<img src="${src}" width="${tw}">`).join('')}</div></div>`).join('')}</body>`);
+      const out = opt.o || base + '.remix.jpg';
+      await pg.screenshot({ path: out, fullPage: true, type: 'jpeg', quality: 80 });
+      const dim = await pg.evaluate(() => [document.documentElement.scrollWidth, document.documentElement.scrollHeight]);
+      console.log(rows.map(rw => rw.label).join('\n'));
+      console.log(`remix → ${out} · ${rows.length} variants × ${rows[0].cells.length} scenes · ≈${tok(Math.round((dim[0] * dim[1]) / 750))} image tokens to view. Apply the chosen row with meta.look + meta.seed (one line).`);
+      return;
+    }
     if (cmd === 'sheet') {
       const portrait = r.spec.meta.h > r.spec.meta.w, tw = portrait ? 288 : 480, scale = tw / r.spec.meta.w;
       const { page, info } = await stagePage(br, r.spec, scale);

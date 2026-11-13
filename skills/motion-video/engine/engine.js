@@ -16,6 +16,23 @@
     inout: p => (p < 0.5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2),
     back: p => 1 + 2.70158 * Math.pow(p - 1, 3) + 1.70158 * Math.pow(p - 1, 2),
   };
+  // looks: one word in the spec picks a whole motion language; the engine varies it scene by scene (seeded)
+  const LOOKS = {
+    clean: { anim: ['rise', 'mask', 'blur'], tr: ['fade', 'slide', 'zoom'], bg: 'glow', fx: [] },
+    bold: { anim: ['pop', 'stamp', 'chars'], tr: ['punch', 'whip', 'flash'], bg: 'stripes', fx: ['shapes', 'shake'] },
+    kinetic: { anim: ['mask', 'chars', 'stamp'], tr: ['whip', 'split', 'punch'], bg: 'plain', fx: ['grain'] },
+    glitch: { anim: ['scramble', 'glitch', 'type'], tr: ['glitch', 'cut', 'whip'], bg: 'grid', fx: ['scan', 'rgb', 'grain'] },
+    cinematic: { anim: ['blur', 'mask', 'rise'], tr: ['fade', 'circle', 'zoom'], bg: 'aurora', fx: ['vignette', 'grain', 'leak'], pace: 1.15 },
+    editorial: { anim: ['mask', 'highlight', 'type'], tr: ['diagonal', 'split', 'slide'], bg: 'halftone', fx: ['grain'] },
+    playful: { anim: ['wave', 'pop', 'split'], tr: ['circle', 'flash', 'punch'], bg: 'mesh', fx: ['shapes'] },
+  };
+  const mulberry = a => () => { a = (a + 0x6d2b79f5) >>> 0; let x = Math.imul(a ^ (a >>> 15), 1 | a); x = (x + Math.imul(x ^ (x >>> 7), 61 | x)) ^ x; return ((x ^ (x >>> 14)) >>> 0) / 4294967296; };
+  const hstr = s => [...String(s)].reduce((a, ch) => (Math.imul(a, 31) + ch.charCodeAt(0)) >>> 0, 2166136261);
+  const noise = (a, b) => mulberry(hstr(a + ':' + b))();
+  const GS = typeof Intl !== 'undefined' && Intl.Segmenter ? new Intl.Segmenter('vi', { granularity: 'grapheme' }) : null;
+  const graphemes = w => (GS ? [...GS.segment(w)].map(x => x.segment) : [...w]);
+  const clamp = p => (p < 0 ? 0 : p > 1 ? 1 : p);
+  const GLY = 'ABCDEFGHJKMNPQRSTUVWXYZ0123456789#%&*+=?<>/';
   let U = 40;
   let PEND = [];
 
@@ -59,9 +76,9 @@
     x: '<svg viewBox="0 0 24 24"><path d="M6.5 6.5l11 11M17.5 6.5l-11 11" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg>',
   };
 
-  function ctx(el, tl, portrait, meta) {
+  function ctx(el, tl, portrait, meta, sc) {
     const c = {
-      el, tl, portrait, rich, meta,
+      el, tl, portrait, rich, meta, anim: (sc && sc._anim) || 'rise', anims: (sc && sc._anims) || ['rise'],
       h(tag, cls, html, parent) {
         const e = document.createElement(tag);
         if (cls) e.className = cls;
@@ -69,9 +86,9 @@
         (parent || c.el).appendChild(e);
         return e;
       },
-      // word-by-word reveal; returns end time
+      // headline reveal in the scene's text animation (c.anim); returns end time
       words(el, text, at = 0, stagger = 0.055) {
-        const out = [];
+        const out = [], A = c.anim;
         String(text).split(/(\*[^*]+\*)/).forEach(seg => {
           if (!seg) return;
           const em = /^\*[^*]+\*$/.test(seg);
@@ -82,8 +99,40 @@
             else { const sp = document.createElement('span'); sp.className = 'w'; sp.textContent = w; host.appendChild(sp); out.push(sp); }
           });
         });
+        const n = out.length, last = (k, st, d) => at + Math.max(0, k - 1) * st + d;
+        const chars = () => out.flatMap(sp => { const g = graphemes(sp.textContent); sp.textContent = ''; return g.map(ch => { const e = document.createElement('span'); e.className = 'ch'; e.textContent = ch; sp.appendChild(e); return e; }); });
+        if (A === 'pop') { out.forEach((sp, i) => tl.add(sp, { opacity: [0, 1], scale: [0.3, 1] }, at + i * stagger * 1.3, 0.5, 'back')); return last(n, stagger * 1.3, 0.5); }
+        if (A === 'stamp') { out.forEach((sp, i) => tl.add(sp, { opacity: [0, 1], scale: [2.3, 1], blur: [10, 0] }, at + i * 0.11, 0.28, 'out5')); return last(n, 0.11, 0.28); }
+        if (A === 'blur') { out.forEach((sp, i) => tl.add(sp, { opacity: [0, 1], blur: [30, 0], scale: [1.08, 1] }, at + i * stagger * 0.6, 0.9, 'out')); return last(n, stagger * 0.6, 0.9); }
+        if (A === 'mask') {
+          out.forEach((sp, i) => { const inner = document.createElement('span'); inner.className = 'mi'; inner.textContent = sp.textContent; sp.textContent = ''; sp.classList.add('mk'); sp.appendChild(inner);
+            tl.fn(at + i * stagger, 0.6, p => { inner.style.transform = `translateY(${((1 - p) * 118).toFixed(1)}%)`; }, 'out5'); });
+          return last(n, stagger, 0.6);
+        }
+        if (A === 'chars' || A === 'wave' || A === 'split' || A === 'type') {
+          const cs = chars(), st = A === 'type' ? 0.035 : A === 'wave' ? 0.03 : 0.022;
+          cs.forEach((e, k) => tl.add(e, A === 'type' ? { opacity: [0, 1] } : A === 'wave' ? { opacity: [0, 1], y: [0.9, 0], scale: [0.6, 1] } : A === 'split' ? { opacity: [0, 1], x: [k % 2 ? 1.3 : -1.3, 0], blur: [10, 0] } : { opacity: [0, 1], y: [0.5, 0], blur: [6, 0] }, at + k * st, A === 'type' ? 0.01 : A === 'wave' ? 0.55 : 0.45, A === 'wave' ? 'back' : 'out5'));
+          return last(cs.length, st, A === 'type' ? 0.05 : 0.5);
+        }
+        if (A === 'scramble') {
+          out.forEach((sp, i) => { const g = graphemes(sp.textContent);
+            tl.fn(at + i * stagger, 0.7, p => { const k = Math.floor(p * g.length * 1.15), f = Math.floor(p * 24); sp.style.opacity = p > 0 ? 1 : 0; sp.textContent = g.map((ch, j) => (j < k || p >= 1 ? ch : GLY[Math.floor(noise(i * 97 + j, f) * GLY.length)])).join(''); }); });
+          return last(n, stagger, 0.7);
+        }
+        if (A === 'glitch') {
+          out.forEach((sp, i) => tl.fn(at + i * stagger * 1.2, 0.5, p => {
+            const f = Math.floor(p * 30), a = (1 - p) * 0.3;
+            sp.style.opacity = p <= 0 ? 0 : p < 0.35 && f % 3 === 0 ? 0.35 : 1;
+            sp.style.transform = p >= 1 ? '' : `translateX(${((noise(i, f) - 0.5) * a * U * 2).toFixed(1)}px)`;
+            sp.style.textShadow = p >= 1 || p <= 0 ? '' : `${(a * U * 0.35).toFixed(1)}px 0 rgba(255,0,90,.85),${(-a * U * 0.35).toFixed(1)}px 0 rgba(0,220,255,.85)`;
+          }));
+          return last(n, stagger * 1.2, 0.5);
+        }
+        // rise (default) and highlight (rise + marker sweep behind *accent* words)
         out.forEach((sp, i) => tl.add(sp, { opacity: [0, 1], y: [0.55, 0], blur: [10, 0] }, at + i * stagger, 0.5, 'out5'));
-        return at + Math.max(0, out.length - 1) * stagger + 0.5;
+        let end = last(n, stagger, 0.5);
+        if (A === 'highlight') el.querySelectorAll('em').forEach((e, k) => { e.classList.add('hl'); tl.fn(end - 0.15 + k * 0.15, 0.5, p => { e.style.backgroundSize = `${(p * 100).toFixed(1)}% 100%`; }, 'inout'); end += 0.15; });
+        return end;
       },
       up(el, at, dur = 0.55, dy = 0.6) { return tl.add(el, { opacity: [0, 1], y: [dy, 0] }, at, dur, 'out5'); },
       pop(el, at, dur = 0.55) { return tl.add(el, { opacity: [0, 1], scale: [0.86, 1], y: [0.3, 0] }, at, dur, 'back'); },
@@ -113,6 +162,7 @@
       pending(img) { PEND.push(img.decode().catch(() => {})); },
       logo(s, parent) { if (!s.logo) return 0; const im = c.h('img', 'logo', null, parent); im.src = s.logo; c.up(im, 0, 0.5, 0.4); return 0.15; },
       head(s, t = 0) {
+        t = t || 0;
         if (s.kicker) { c.up(c.h('div', 'kicker', rich(s.kicker)), t, 0.5, 0.4); t += 0.15; }
         if (s.title) t = c.words(c.h('h2', 'title'), s.title, t) - 0.2;
         return t;
@@ -292,6 +342,17 @@
       return { end: t + 0.9, read: 0.3, min: (s._clipAt || 0) + (s._len || 0) + 0.25 };
     },
     image(s, c) {
+      if (s.fill) {
+        c.el.classList.add('center');
+        const host = c.el.closest('.mg-scene'), fr = c.h('div', 'frame clip fill', `<img src="${esc(s.image)}">`, host);
+        host.insertBefore(fr, host.firstChild);
+        c.tl.add(fr, { opacity: [0, 1] }, 0, 0.4); c.tl.add(fr.firstChild, { scale: [1.12, 1] }, 0, 6, 'out');
+        let t = 0.3;
+        if (s.kicker) { c.up(c.h('div', 'kicker', rich(s.kicker)), 0.3, 0.5, 0.4); t = 0.45; }
+        if (s.title) t = c.words(c.h('h1', 'big sm'), s.title, t, 0.07);
+        if (s.caption) t = c.up(c.h('p', 'sub', rich(s.caption)), t - 0.1);
+        return t;
+      }
       let t = c.head(s);
       const fr = c.h('div', 'frame', `<img src="${esc(s.image)}">`);
       c.tl.add(fr, { opacity: [0, 1], scale: [0.94, 1], y: [0.6, 0] }, t, 0.7, 'out5');
@@ -396,6 +457,75 @@
       if (s.pills) { const pw = c.h('div', 'pills', '', L); s.pills.forEach((x, i) => c.pop(c.h('span', '', rich(x), pw), t + i * 0.12, 0.45)); t += s.pills.length * 0.12 + 0.4; }
       return { end: t, read: 2.6 };
     },
+    // kinetic typography: one short phrase per beat-length slot, each with its own animation and layout
+    kinetic(s, c) {
+      c.el.classList.add('kin-host');
+      const bt = c.meta._beat, per = bt ? bt.p * (bt.n || 2) : 0.95, list = s.kinetic, an = c.anims;
+      let t = 0.1;
+      list.forEach((ph, i) => {
+        const box = c.h('div', 'kin k' + ((i + (s._v || 0)) % 4)), h = c.h('div', 'kt', null, box);
+        c.tl.add(box, { opacity: [0, 1] }, t, 0.01);
+        const save = c.anim; c.anim = an[i % an.length]; const end = c.words(h, ph, t, 0.045); c.anim = save;
+        const slot = t + per * Math.max(1, Math.ceil((end - t + 0.3) / per));
+        if (i < list.length - 1) c.tl.add(box, { opacity: [1, 0], scale: [1, 1.12] }, slot - 0.12, 0.12, 'in');
+        t = slot;
+      });
+      return { end: t - 0.4, read: 0.1, min: t - 0.05 };
+    },
+    // split screen: media fills one half edge to edge, text on the other half
+    split(s, c) {
+      const host = c.el.closest('.mg-scene'), right = s.side === 'right';
+      host.classList.add(right ? 'sr' : 'sl');
+      const m = c.h('div', 'splitm', `<img src="${esc(s.split)}">`, host); host.insertBefore(m, host.firstChild);
+      c.tl.fn(0, 0.7, p => { m.style.clipPath = c.portrait ? `inset(0 0 ${((1 - p) * 100).toFixed(1)}% 0)` : right ? `inset(0 0 0 ${((1 - p) * 100).toFixed(1)}%)` : `inset(0 ${((1 - p) * 100).toFixed(1)}% 0 0)`; }, 'inout');
+      c.tl.add(m.firstChild, { scale: [1.2, 1] }, 0, 1.4, 'out5');
+      let t = c.head(s, 0.35);
+      if (s.sub) t = c.up(c.h('p', 'sub', rich(s.sub)), t);
+      if (s.points) { const bl = c.h('div', 'bl sm'); s.points.forEach((it, i) => { const [a, b] = pair(it); c.tl.add(c.h('div', 'bi', `<span class="n">${i + 1}</span><div><b>${rich(a)}</b>${b ? `<small>${rich(b)}</small>` : ''}</div>`, bl), { opacity: [0, 1], x: [right ? -1 : 1, 0] }, t + i * 0.22, 0.5, 'out5'); }); t += s.points.length * 0.22 + 0.4; }
+      return t;
+    },
+    // photo mosaic with staggered pops and slow zoom per tile
+    grid(s, c) {
+      let t = c.head(s);
+      const g = c.h('div', 'mosaic n' + s.grid.length);
+      s.grid.forEach((src, i) => { const cell = c.h('div', 'mc', `<img src="${esc(src)}">`, g); c.tl.add(cell, { opacity: [0, 1], scale: [0.8, 1], rotate: [i % 2 ? 4 : -4, 0] }, t + i * 0.12, 0.6, 'back'); c.tl.add(cell.firstChild, { scale: [1.15, 1] }, t + i * 0.12, 4, 'out'); });
+      t += s.grid.length * 0.12 + 0.5;
+      if (s.caption) t = c.up(c.h('p', 'sub', rich(s.caption)), t - 0.2);
+      return t;
+    },
+    // phone / laptop mockup; a tall screenshot scrolls, a video plays
+    device(s, c) {
+      let t = c.head(s);
+      const kind = s.frame || (c.portrait ? 'phone' : 'laptop');
+      const d = c.h('div', 'dev ' + kind, `<div class="scr"><img></div>${kind === 'laptop' ? '<i class="base"></i>' : '<i class="notch"></i>'}`);
+      const scr = d.firstChild, img = scr.firstChild, F = s._frames, fps = s._fps || 30;
+      c.tl.add(d, { opacity: [0, 1], y: [2.2, 0], rotate: [kind === 'phone' ? -5 : 0, 0] }, t, 0.8, 'out5');
+      const t0 = t + 0.9, sd = +s.scroll || 3.6;
+      if (F && F.length) { img.src = F[0]; c.tl.live(lt => { const k = Math.max(0, Math.min(F.length - 1, Math.floor((lt - t0) * fps))); if (img._k !== k) { img._k = k; img.src = F[k]; c.pending(img); } }); s._clipAt = t0; }
+      else { img.src = s.device; if (s.scroll !== false) c.tl.live(lt => { const over = img.offsetHeight - scr.clientHeight; img.style.transform = over > 4 ? `translateY(${(-over * ease.inout(clamp((lt - t0) / sd))).toFixed(1)}px)` : ''; }); }
+      if (s.caption) c.up(c.h('p', 'sub', rich(s.caption)), t + 0.5);
+      return { end: t0, read: 0.3, min: F && F.length ? t0 + (s._len || 0) + 0.25 : t0 + sd + 0.6 };
+    },
+    // logo sting: ring draws, rays burst, logo pops, tagline follows
+    sting(s, c) {
+      c.el.classList.add('center');
+      const w = c.h('div', 'sting', `<svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="44" pathLength="100"/></svg>${Array.from({ length: 12 }, (_, i) => `<i style="transform:rotate(${i * 30}deg)"><b></b></i>`).join('')}<img src="${esc(s.sting)}">`);
+      const ring = w.querySelector('circle'), rays = [...w.querySelectorAll('b')], img = w.querySelector('img');
+      c.tl.fn(0, 0.7, p => { ring.style.strokeDashoffset = 100 - 100 * p; }, 'inout');
+      rays.forEach((r, i) => { c.tl.add(r, { sy: [0, 1], opacity: [0, 1] }, 0.45 + (i % 3) * 0.03, 0.25, 'out5'); c.tl.add(r, { y: [0, -1.2], opacity: [1, 0] }, 0.7, 0.4, 'out'); });
+      c.tl.add(img, { opacity: [0, 1], scale: [0.4, 1] }, 0.4, 0.6, 'back');
+      let t = 1.0;
+      if (s.sub) t = c.words(c.h('h2', 'title'), s.sub, 1.0, 0.06);
+      return t;
+    },
+    // timeline: a line draws while milestones pop in order
+    timeline(s, c) {
+      let t = c.head(s);
+      const box = c.h('div', 'tline ' + (c.portrait ? 'v' : 'h')), bar = c.h('i', 'tbar', null, box), n = s.timeline.length;
+      c.tl.add(bar, c.portrait ? { sy: [0, 1] } : { sx: [0, 1] }, t, n * 0.35 + 0.2, 'inout');
+      s.timeline.forEach((it, i) => { const [a, b] = pair(it); c.pop(c.h('div', 'tit', `<span class="tdot"></span><b>${rich(a)}</b>${b ? `<small>${rich(b)}</small>` : ''}`, box), t + 0.15 + i * 0.35, 0.5); });
+      return t + n * 0.35 + 0.6;
+    },
     recap() { return { end: 1.5, read: 0.1, dur: 1.7 }; },
     raw(s, c) {
       c.el.insertAdjacentHTML('beforeend', s.raw);
@@ -435,11 +565,33 @@
     stage.style.setProperty('--pb', (portrait ? 0.15 : 0.1) * H + 'px');
     stage.style.setProperty('--px', (portrait ? 0.075 : 0.07) * W + 'px');
 
-    const bgk = m.bg || 'glow', bg = document.createElement('div');
+    // look + seed → each scene gets a text animation and a transition from the look's palette (never the same twice in a row)
+    const LK = m.look ? LOOKS[m.look] : null, R = mulberry(hstr((m.look || '') + ':' + (m.seed ?? 1)));
+    const pick = (arr, prev) => { const c = arr.length > 1 ? arr.filter(x => x !== prev) : arr; return c[Math.floor(R() * c.length)]; };
+    let pa = null, pt = null;
+    spec.scenes.forEach((s, i) => {
+      const A = LK ? LK.anim : [m.anim || 'rise'], T = LK ? LK.tr : [m.transition || 'fade'];
+      s._anims = s.anim ? [s.anim] : m.anim ? [m.anim] : A;
+      s._anim = s.anim || m.anim || (i === 0 ? A[0] : pick(A, pa)); pa = s._anim;
+      s._tr = s.tr || m.transition || (LK ? pick(T, pt) : 'fade'); pt = s._tr;
+      s._v = Math.floor(R() * 4);
+    });
+    const pace = m.pace ?? (LK && LK.pace) ?? 1, fx = new Set([].concat(m.fx ?? (LK ? LK.fx : [])).filter(Boolean));
+    const bgk = m.bg || (LK && LK.bg) || 'glow', bg = document.createElement('div');
     bg.className = 'mg-bg';
-    bg.innerHTML = (bgk === 'grid' ? '<div class="grid"></div>' : '') + (bgk === 'dots' ? '<div class="dots"></div>' : '') + (bgk !== 'plain' ? '<div class="blob b1"></div><div class="blob b2"></div>' : '');
+    bg.innerHTML = ({ grid: '<div class="grid"></div>', dots: '<div class="dots"></div>', stripes: '<div class="stripes"></div>', halftone: '<div class="halftone"></div>', aurora: '<div class="aurora"><i></i><i></i></div>' }[bgk] || '')
+      + (bgk !== 'plain' ? '<div class="blob b1"></div><div class="blob b2"></div>' + (bgk === 'mesh' ? '<div class="blob b3"></div>' : '') : '');
+    if (bgk === 'mesh') bg.classList.add('mesh');
     stage.appendChild(bg);
-    const blobs = [...bg.querySelectorAll('.blob')];
+    const blobs = [...bg.querySelectorAll('.blob')], bgAnim = bg.querySelector('.stripes,.halftone,.aurora');
+    let shapes = [];
+    if (fx.has('shapes')) {
+      const sh = document.createElement('div'); sh.className = 'mg-shapes'; bg.appendChild(sh);
+      const kinds = ['<i class="sc"></i>', '<i class="sr"></i>', '<svg viewBox="0 0 10 10"><path d="M5 1L9 9H1z"/></svg>', '<svg viewBox="0 0 10 10"><path d="M5 1v8M1 5h8"/></svg>', '<svg viewBox="0 0 20 8"><path d="M1 4q2.5-4 5 0t5 0 5 0 3 0"/></svg>'];
+      shapes = Array.from({ length: 11 }, (_, k) => { const e = document.createElement('div'); e.className = 'shp c' + (k % 3); e.innerHTML = kinds[k % kinds.length]; const z = 0.6 + R() * 1.4; e.style.width = z + 'em'; e.style.height = z + 'em'; sh.appendChild(e); return { e, x: k % 2 ? 0.84 + R() * 0.13 : 0.02 + R() * 0.13, y: R(), r: R() * 360, v: 0.3 + R(), ph: R() * 6.28 }; });
+    }
+    let layer = null;
+    if (!desk) { layer = document.createElement('div'); layer.className = 'mg-layer'; stage.appendChild(layer); }
 
     let world = null, blur = null, mascot = null;
     if (desk) {
@@ -456,34 +608,47 @@
       const inner = document.createElement('div'); inner.className = 'mg-i';
       let slot = null, frame = null;
       if (desk) { const [px, py] = place(i, spec.scenes.length); slot = document.createElement('div'); slot.className = 'mg-slot'; slot.style.cssText = `left:${px}px;top:${py}px;width:${W}px;height:${H}px`; slot._p = [px, py]; world.appendChild(slot); slot.appendChild(el); }
-      else stage.appendChild(el);
+      else layer.appendChild(el);
       if (desk && WIN.has(s.type) && !s.fill) {
         frame = document.createElement('div'); frame.className = 'window paper';
         frame.innerHTML = `<div class="wbar"><i></i><i></i><i></i><span>${rich(s.win || '')}</span></div><div class="wbody"></div>`;
         frame.lastChild.appendChild(inner); cbox.appendChild(frame);
       } else cbox.appendChild(inner);
       el.appendChild(cbox);
-      const tl = new TL(), r = B[s.type](s, ctx(inner, tl, portrait, m));
+      const tl = new TL(), r = B[s.type](s, ctx(inner, tl, portrait, m, s));
+      if (s.lower) {
+        const [la, lb] = pair(s.lower), lo = document.createElement('div');
+        lo.className = 'lower'; lo.innerHTML = `<i></i><div><b>${rich(la)}</b>${lb ? `<span>${rich(lb)}</span>` : ''}</div>`; el.appendChild(lo);
+        tl.add(lo.firstChild, { sy: [0, 1] }, 0.5, 0.35, 'out5'); tl.add(lo.lastChild, { opacity: [0, 1], x: [-1, 0] }, 0.62, 0.5, 'out5');
+      }
       if (!portrait && ['image', 'clip', 'loop'].includes(s.type) && !s.fill && inner.querySelector(':scope>.title,:scope>.kicker,:scope>.sub')) inner.classList.add('sp');
       const end = typeof r === 'number' ? r : r.end;
       const words = countWords(s, '');
       const read = (typeof r === 'object' && r.read) || Math.min(3.2, Math.max(1, words * 0.2 - end * 0.5));
       const last = i === spec.scenes.length - 1, lead = desk && i ? LEAD : 0;
-      let auto = (r.dur || Math.min(10, Math.max(2.4, end + read * (m.pace || 1) + (last ? 0.9 : 0.4)))) + lead;
+      let auto = (r.dur || Math.min(10, Math.max(2.4, end + read * pace + (last ? 0.9 : 0.4)))) + lead;
       if (r.min) auto = Math.max(auto, r.min + lead);
       const vo = s._vo || null;
       if (vo) auto = Math.max(auto, lead + vo.at + vo.dur + (last ? 0.9 : 0.35));
-      return { el, cbox, inner, slot, frame, tl, type: s.type, end, lead, vo, tr: s.tr || m.transition || 'fade', dur: s.dur != null ? +s.dur : Math.round(auto * 10) / 10, fixed: s.dur != null, last };
+      return { el, cbox, inner, slot, frame, tl, type: s.type, end, lead, vo, tr: s._tr, dur: s.dur != null ? +s.dur : Math.round(auto * 10) / 10, fixed: s.dur != null, last };
     });
 
     if (desk && m.mascot) { mascot = document.createElement('img'); mascot.className = 'mg-mascot'; mascot.src = m.mascot; world.appendChild(mascot); }
     if (m.brand) { const b = document.createElement('div'); b.className = 'mg-brand'; b.innerHTML = rich(m.brand); stage.appendChild(b); }
     let marq = null;
     if (m.marquee) { marq = document.createElement('div'); marq.className = 'mg-marq'; marq.innerHTML = '<div>' + `<span>${rich(m.marquee)}</span>`.repeat(12) + '</div>'; stage.appendChild(marq); }
+    let fxl = null, grainT = [];
+    if ([...fx].some(f => ['grain', 'leak', 'vignette', 'scan'].includes(f))) {
+      fxl = document.createElement('div'); fxl.className = 'mg-fx';
+      fxl.innerHTML = (fx.has('leak') ? '<div class="leak"><i></i><i></i></div>' : '') + (fx.has('vignette') ? '<div class="vig"></div>' : '') + (fx.has('scan') ? '<div class="scan"></div>' : '') + (fx.has('grain') ? '<div class="grain"></div>' : '');
+      stage.appendChild(fxl);
+      if (fx.has('grain')) for (let k = 0; k < 4; k++) { const cv = document.createElement('canvas'); cv.width = cv.height = 192; const g = cv.getContext('2d'), d = g.createImageData(192, 192), rr = mulberry(hstr('grain' + k)); for (let j = 0; j < d.data.length; j += 4) { const v = rr() * 255; d.data[j] = d.data[j + 1] = d.data[j + 2] = v; d.data[j + 3] = 255; } g.putImageData(d, 0, 0); grainT.push(`url(${cv.toDataURL()})`); }
+    }
+    for (const f of fx) stage.classList.add('fx-' + f);
     let cap = null;
     if (m.captions !== false && scenes.some(x => x.vo && x.vo.cues && x.vo.cues.length)) { cap = document.createElement('div'); cap.className = 'mg-cap'; stage.appendChild(cap); }
-    let wipe = null;
-    if (!desk && scenes.some(x => x.tr === 'wipe')) { wipe = document.createElement('div'); wipe.className = 'mg-wipe'; wipe.innerHTML = '<i></i><b></b>'; stage.appendChild(wipe); }
+    const ov = {};
+    if (!desk) for (const [k, html] of [['wipe', '<i></i><b></b>'], ['flash', ''], ['split', '<i></i><b></b>']]) if (scenes.some(x => x.tr === k)) { const e = document.createElement('div'); e.className = 'mg-' + k; e.innerHTML = html; stage.appendChild(e); ov[k] = e; }
     let prog = null;
     if (m.progress) { prog = document.createElement('div'); prog.className = 'mg-prog'; prog.innerHTML = '<i></i>'; stage.appendChild(prog); }
 
@@ -505,20 +670,39 @@
         sc.dur = Math.round((Math.ceil((start + sc.dur + kk - bt.o) / g - 1e-4) * g + bt.o - kk - start) * 1000) / 1000;
       }
       if (!desk) {
-        const pv = scenes[i - 1], tin = pv ? pv.tr : null, X = W / U;
-        if (tin === 'slide') sc.tl.add(sc.el, { x: [X * 0.55, 0], opacity: [0, 1] }, 0, 0.45, 'out5');
-        else if (tin === 'zoom') sc.tl.add(sc.el, { scale: [0.82, 1], opacity: [0, 1] }, 0, 0.45, 'out5');
-        else if (tin === 'blur') sc.tl.add(sc.el, { blur: [26, 0], opacity: [0, 1] }, 0, 0.45, 'out5');
+        const pv = scenes[i - 1], tin = pv ? pv.tr : null, X = W / U, el = sc.el;
+        if (tin === 'slide') sc.tl.add(el, { x: [X * 0.55, 0], opacity: [0, 1] }, 0, 0.45, 'out5');
+        else if (tin === 'zoom') sc.tl.add(el, { scale: [0.82, 1], opacity: [0, 1] }, 0, 0.45, 'out5');
+        else if (tin === 'blur') sc.tl.add(el, { blur: [26, 0], opacity: [0, 1] }, 0, 0.45, 'out5');
+        else if (tin === 'whip') sc.tl.add(el, { x: [X * 0.9, 0], blur: [40, 0] }, 0, 0.32, 'out5');
+        else if (tin === 'punch') sc.tl.add(el, { scale: [1.35, 1], blur: [20, 0], opacity: [0, 1] }, 0, 0.3, 'out5');
+        else if (tin === 'flash') sc.tl.add(el, { scale: [1.08, 1] }, 0, 0.45, 'out5');
         if (!sc.last) {
           const o = sc.tr, d = 0.38, a0 = sc.dur - d;
-          if (o === 'slide') sc.tl.add(sc.el, { x: [0, -X * 0.55], opacity: [1, 0] }, a0, d, 'in');
-          else if (o === 'zoom') sc.tl.add(sc.el, { scale: [1, 1.22], opacity: [1, 0] }, a0, d, 'in');
-          else if (o === 'blur') sc.tl.add(sc.el, { blur: [0, 26], opacity: [1, 0] }, a0, d, 'in');
-          else if (o !== 'wipe' && o !== 'cut') sc.tl.add(sc.el, { opacity: [1, 0], y: [0, -0.7] }, a0, d, 'in');
+          if (o === 'slide') sc.tl.add(el, { x: [0, -X * 0.55], opacity: [1, 0] }, a0, d, 'in');
+          else if (o === 'zoom') sc.tl.add(el, { scale: [1, 1.22], opacity: [1, 0] }, a0, d, 'in');
+          else if (o === 'blur') sc.tl.add(el, { blur: [0, 26], opacity: [1, 0] }, a0, d, 'in');
+          else if (o === 'whip') sc.tl.add(el, { x: [0, -X * 0.9], blur: [0, 40] }, sc.dur - 0.25, 0.25, 'in');
+          else if (o === 'punch') sc.tl.add(el, { scale: [1, 1.35], blur: [0, 20], opacity: [1, 0] }, sc.dur - 0.25, 0.25, 'in');
+          else if (o === 'fade') sc.tl.add(el, { opacity: [1, 0], y: [0, -0.7] }, a0, d, 'in');
         }
+        // clip-path and glitch transitions are driven per frame (both ends of the scene share one style property)
+        const o = sc.last ? null : sc.tr;
+        if (['circle', 'diagonal', 'glitch'].includes(tin) || ['circle', 'diagonal', 'glitch'].includes(o)) sc.tl.live(lt => {
+          let cp = '', gk = 0; const D = sc.dur;
+          if (tin === 'circle' && lt < 0.55) cp = `circle(${(ease.inout(clamp(lt / 0.55)) * 80).toFixed(2)}% at 50% 50%)`;
+          if (o === 'circle' && lt > D - 0.45) cp = `circle(${((1 - ease.inout(clamp((lt - D + 0.45) / 0.45))) * 80).toFixed(2)}% at 50% 50%)`;
+          if (tin === 'diagonal' && lt < 0.5) { const q = ease.inout(clamp(lt / 0.5)) * 220; cp = `polygon(0 0,${q.toFixed(1)}% 0,${(q - 20).toFixed(1)}% 100%,0 100%)`; }
+          if (o === 'diagonal' && lt > D - 0.4) { const q = ease.inout(clamp((lt - D + 0.4) / 0.4)) * 220; cp = `polygon(${(q - 100).toFixed(1)}% 0,100% 0,100% 100%,${(q - 120).toFixed(1)}% 100%)`; }
+          if (tin === 'glitch' && lt < 0.28) gk = 1 - lt / 0.28;
+          if (o === 'glitch' && lt > D - 0.28) gk = (lt - D + 0.28) / 0.28;
+          el.style.clipPath = cp;
+          if (gk > 0) { const f = Math.floor(lt * 30); el.style.transform = `translateX(${((noise('g' + i, f) - 0.5) * gk * U * 1.4).toFixed(1)}px) skewX(${((noise('k' + i, f) - 0.5) * gk * 10).toFixed(1)}deg)`; el.style.filter = `drop-shadow(${(gk * U * 0.25).toFixed(1)}px 0 0 rgba(255,0,90,.85)) drop-shadow(${(-gk * U * 0.25).toFixed(1)}px 0 0 rgba(0,220,255,.85))`; if (!cp) el.style.clipPath = `inset(${(noise('a' + i, f) * gk * 35).toFixed(1)}% 0 ${(noise('b' + i, f) * gk * 35).toFixed(1)}% 0)`; el._g = 1; }
+          else if (el._g) { el.style.transform = ''; el.style.filter = ''; el._g = 0; }
+        });
       }
       sc.start = start; start += sc.dur;
-      return { i: i + 1, type: sc.type, start: +sc.start.toFixed(3), lead: sc.lead, clipAt: spec.scenes[i]._clipAt, voAt: sc.vo ? +(sc.start + sc.lead + sc.vo.at).toFixed(3) : null, dur: sc.dur, need: +(sc.end + sc.lead + 0.8).toFixed(1), fit: k, overflow: sc.overflow, fixed: sc.fixed, imgErr: !!sc.el.querySelector('img[data-err]') };
+      return { i: i + 1, type: sc.type, anim: spec.scenes[i]._anim, tr: desk ? 'cam' : spec.scenes[i]._tr, start: +sc.start.toFixed(3), lead: sc.lead, clipAt: spec.scenes[i]._clipAt, voAt: sc.vo ? +(sc.start + sc.lead + sc.vo.at).toFixed(3) : null, dur: sc.dur, need: +(sc.end + sc.lead + 0.8).toFixed(1), fit: k, overflow: sc.overflow, fixed: sc.fixed, imgErr: !!sc.el.querySelector('img[data-err]') };
     });
 
     if (desk) {
@@ -539,7 +723,7 @@
         wins.forEach((x, k) => { x.gone = true; sc.tl.add(x.slot, { x: [0, (mid - x.cam.x) / U], y: [0, (my - x.cam.y) / U], scale: [1, 0.5], opacity: [1, 0] }, 0.75 + k * 0.06, 0.5, 'in'); });
       });
     }
-    S = { scenes, total: start, blobs, prog, W, H, desk, world, blur, mascot, marq, cap, wipe, mw: marq ? marq.querySelector('span').getBoundingClientRect().width : 0, beat: bt && m.pulse !== false ? bt : null, bg };
+    S = { scenes, total: start, blobs, prog, W, H, desk, world, blur, mascot, marq, cap, ov, fx, fxl, grainT, shapes, bgAnim, layer, stage, mw: marq ? marq.querySelector('span').getBoundingClientRect().width : 0, beat: bt && m.pulse !== false ? bt : null, bg };
     await seek(0);
     return { total: +start.toFixed(2), w: W, h: H, fps: m.fps, scenes: info, beat: bt };
   }
@@ -570,16 +754,34 @@
       if (on) sc.tl.seek(t - sc.start);
     });
     if (blobs[0]) blobs[0].style.transform = `translate(${(-0.45 + 0.12 * Math.sin(t * 0.35)) * W}px,${(-0.25 + 0.08 * Math.cos(t * 0.3)) * H}px)`;
+    if (blobs[2]) blobs[2].style.transform = `translate(${(0.1 + 0.3 * Math.sin(t * 0.22)) * W}px,${(0.15 + 0.25 * Math.cos(t * 0.19)) * H}px)`;
     if (blobs[1]) blobs[1].style.transform = `translate(${(0.35 + 0.12 * Math.cos(t * 0.28)) * W}px,${(0.55 + 0.07 * Math.sin(t * 0.33)) * H}px)`;
     if (S.beat && !S.desk) S.bg.style.transform = `scale(${1 + 0.035 * pulse})`;
     if (S.marq) S.marq.firstChild.style.transform = `translateX(${-((t * 2.4 * U) % S.mw)}px)`;
     if (prog) prog.firstChild.style.width = Math.min(100, (t / total) * 100) + '%';
     if (S.cap) captions(t);
-    if (S.wipe) {
-      let v = null;
-      for (let i = 0; i < scenes.length - 1; i++) { const sc = scenes[i], T = sc.start + sc.dur; if (sc.tr === 'wipe' && Math.abs(t - T) < 0.36) v = t < T ? -100 + 100 * ease.inout((t - T + 0.36) / 0.36) : 100 * ease.inout((t - T) / 0.36); }
-      S.wipe.style.display = v == null ? 'none' : 'block';
-      if (v != null) S.wipe.style.transform = `translateX(${v.toFixed(2)}%)`;
+    // overlay transitions centred on the cut
+    const cutNear = k => { for (let i = 0; i < scenes.length - 1; i++) { const sc = scenes[i], T = sc.start + sc.dur; if (sc.tr === k && Math.abs(t - T) < 0.36) return t - T; } return null; };
+    for (const k in S.ov) {
+      const e = S.ov[k], d = cutNear(k);
+      e.style.display = d == null ? 'none' : 'block';
+      if (d == null) continue;
+      if (k === 'wipe') e.style.transform = `translateX(${(d < 0 ? -100 + 100 * ease.inout((d + 0.36) / 0.36) : 100 * ease.inout(d / 0.36)).toFixed(2)}%)`;
+      else if (k === 'flash') e.style.opacity = Math.max(0, 1 - Math.abs(d) / 0.3).toFixed(3);
+      else { const q = d < 0 ? ease.inout((d + 0.36) / 0.36) : 1 - ease.inout(d / 0.36), v = ((1 - q) * 100).toFixed(2); e.firstChild.style.transform = `translate${H > W ? 'Y' : 'X'}(-${v}%)`; e.lastChild.style.transform = `translate${H > W ? 'Y' : 'X'}(${v}%)`; }
+    }
+    // effects: beat (or cut) kick drives shake and colour split; grain, leak, shapes and textured backgrounds drift
+    const fx = S.fx;
+    if (fx.size || S.bgAnim) {
+      let kk = pulse;
+      if (!S.beat) { let dmin = 9; for (const sc of scenes) dmin = Math.min(dmin, Math.abs(t - sc.start)); kk = Math.exp(-dmin * 9); }
+      if (fx.has('shake')) { const tg = S.desk ? S.blur.view : S.layer, f = Math.floor(t * 30), a = U * (0.05 + 0.22 * kk); tg.style.transform = `translate(${((noise('sx', f) - 0.5) * a).toFixed(1)}px,${((noise('sy', f) - 0.5) * a).toFixed(1)}px) rotate(${((noise('sr', f) - 0.5) * 0.5 * kk).toFixed(2)}deg)`; }
+      if (fx.has('rgb')) S.stage.style.setProperty('--rgb', (kk * 0.07 * U).toFixed(1) + 'px');
+      if (S.grainT.length) { const g = S.fxl.querySelector('.grain'), f = Math.floor(t * 24); g.style.backgroundImage = S.grainT[f % 4]; g.style.backgroundPosition = `${Math.floor(noise('gx', f) * 192)}px ${Math.floor(noise('gy', f) * 192)}px`; }
+      if (fx.has('leak')) { const [a, b] = S.fxl.querySelectorAll('.leak i'); a.style.transform = `translate(${(-0.3 + 0.25 * Math.sin(t * 0.4)) * W}px,${(-0.2 + 0.1 * Math.cos(t * 0.33)) * H}px)`; b.style.transform = `translate(${(0.45 + 0.2 * Math.cos(t * 0.31)) * W}px,${(0.5 + 0.12 * Math.sin(t * 0.27)) * H}px)`; a.style.opacity = (0.35 + 0.25 * Math.sin(t * 0.9)).toFixed(3); }
+      if (fx.has('scan')) S.fxl.querySelector('.scan').style.backgroundPosition = `0 ${((t * 40) % 400).toFixed(1)}px`;
+      for (const o of S.shapes) o.e.style.transform = `translate(${((o.x + 0.04 * Math.sin(t * o.v + o.ph)) * W).toFixed(1)}px,${((((o.y - t * 0.012 * o.v) % 1) + 1) % 1 * H).toFixed(1)}px) rotate(${(o.r + t * 25 * o.v).toFixed(1)}deg) scale(${(1 + 0.25 * kk).toFixed(3)})`;
+      if (S.bgAnim) { const c = S.bgAnim.className; if (c === 'stripes') S.bgAnim.style.backgroundPosition = `${(t * 0.8 * U).toFixed(1)}px 0`; else if (c === 'halftone') S.bgAnim.style.transform = `translate(${(Math.sin(t * 0.3) * U).toFixed(1)}px,${(-t * 0.25 * U % (1.2 * U)).toFixed(1)}px)`; else { const [a, b] = S.bgAnim.children; a.style.transform = `translateX(${(Math.sin(t * 0.25) * 0.15 * W).toFixed(1)}px) skewY(${(-8 + 4 * Math.sin(t * 0.3)).toFixed(2)}deg)`; b.style.transform = `translateX(${(Math.cos(t * 0.21) * 0.18 * W).toFixed(1)}px) skewY(${(6 + 4 * Math.cos(t * 0.27)).toFixed(2)}deg)`; } }
     }
     const pend = PEND; PEND = [];
     return pend.length ? Promise.all(pend) : undefined;

@@ -1,6 +1,6 @@
 {
   "name": "mograph",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "Motion graphic videos from a compact YAML spec, built for AI agents: template engine, beat-synced music, text-only lint, contact-sheet QA, MP4 render.",
   "license": "MIT",
   "keywords": [

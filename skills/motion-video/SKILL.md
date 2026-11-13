@@ -18,7 +18,10 @@ Needs Node 18+, Google Chrome/Edge (or `MOGRAPH_CHROME`), ffmpeg. If anything fa
 2. **Pick assets.** `mg assets <folder>` lists each image/video/audio with size and what it suits — text only. Choose from the list;
    add `--sheet` (one thumbnail image) only if names and sizes are not enough. Do not Read image files one by one.
    Wide product shots/screenshots → `image`. Video files → `clip`. Transparent PNG/SVG → `logo`, `mascot`, `avatar`.
-3. **Pick motion.** Choose the style, then one scene type per beat from the table below.
+3. **Pick motion.** Choose the style, then one scene type per beat from the table below, then a **look** (one word, below).
+   Do not hand-pick animations per scene: the look + `seed` vary them for you. To offer the user a choice, run
+   `mg remix <spec>` — ONE image comparing looks (rows) across scenes; they answer "B", you set `look`/`seed`. Never ask for
+   per-scene effects unless the user names one.
 4. **Write `<name>.yaml`.** Omit `dur` (auto-timed). `mg catalog <type>` only for a type whose fields you are unsure of.
 5. **Add sound.** Music: `music: upbeat | chill | cinematic | hiphop | drive` (built-in, original, exact BPM) or `audio: path`
    (user's file, BPM auto-detected). Cuts and camera moves snap to the beat grid — never hand-tune `dur` for sync.
@@ -39,7 +42,14 @@ Do not read rendered frames or the video back; do not open engine source unless 
 | The beat is about… | Scene type | Why |
 |---|---|---|
 | Opening line, section title | `hook` | word-by-word reveal |
-| A product / screenshot / photo | `image` (+ `title`, `kicker`, `caption`) | image dominates the card, slow zoom |
+| Opener / hype line, a slogan broken into beats | `kinetic` (2–8 phrases ≤5 words) | full-screen type, one phrase per beat |
+| Brand / logo intro or outro | `sting` (logo path + `sub`) | ring draws, rays burst, logo pops |
+| A product / screenshot / photo | `image` (+ `title`, `kicker`, `caption`) · `fill: true` full-screen photo | image dominates the card, slow zoom |
+| A product next to its benefits | `split` (image + `title`, `points`) | half image, half text |
+| An app or website | `device` (phone/laptop mockup; tall screenshot scrolls, video plays) | looks like the real product |
+| Several photos / an event | `grid` (2–6 images) | mosaic pops in |
+| History, roadmap, steps with dates | `timeline` ("When|What") | line draws, milestones pop |
+| Who is speaking / what this is | `lower: "Name|Role"` on any scene | lower-third bar |
 | A product in action, a screen recording, b-roll | `clip` (`from`, `to`, `sound`) · `fill: true` for full-screen footage behind a title | real motion beats any animation. The scene lasts as long as the clip (whole file, max 12s) — always trim to 3–6s with `from`/`to` |
 | One number | `stat` (+ `src`) | count-up |
 | Comparing numbers | `bars` (+ `src`) | bars grow |
@@ -54,17 +64,22 @@ Do not read rendered frames or the video back; do not open engine source unless 
 | A saying | `quote` | |
 | Ending | `cta` · `ticket` (summary card + confetti) | |
 
+Looks (`meta.look`) — each sets text animations, transitions, background and overlays; `seed: 2` reshuffles:
+`clean` calm/corporate · `bold` short-form social energy · `kinetic` typography-led · `glitch` tech/AI (sparingly) ·
+`cinematic` slow brand story · `editorial` magazine/explainer · `playful` fun/lifestyle. `mg catalog looks` / `mg catalog fx` list the parts;
+`fx: [grain, leak]`, `bg:`, `transition:`, scene `anim:`/`tr:` override the look only when the user asks for something specific.
+
 Style (`meta.style`): `slides` — one scene per cut; talking-point explainers, data stories. `desk` — every scene is a window card on one
 canvas, camera whip-pans between them; product/website tours, invites, announcements. In `desk`, add `win: title` per card,
 end with `recap: true` (zoom out, cards collapse) then `ticket` or `cta`. `layout: grid | column | zigzag` moves the camera in 2D instead of a straight line.
-Transitions (`slides`): `transition: fade | slide | zoom | blur | wipe | cut`, or `tr:` on one scene. One or two kinds per video, not a different one every cut.
+Transitions come from the look (slides style); desk style moves the camera instead.
 Music: `upbeat` product intros/explainers · `chill` personal/storytelling · `cinematic` brand stories · `hiphop` creator tips · `drive` launches. Never two scenes of the same type in a row
 unless it is a product series.
 
 ## Spec cheatsheet
 
 ```yaml
-meta: {size: "9:16", style: desk, theme: midnight, music: upbeat, brand: "@handle", max: 45}
+meta: {size: "9:16", look: bold, theme: midnight, music: upbeat, brand: "@handle", max: 45}
 scenes:
   - hook: "AI Agent *không phải* chatbot"      # *word* = accent; first key = scene type
     kicker: AI Agent 101
@@ -99,7 +114,7 @@ scenes:
 - `max: 45` = target length in seconds (lint warns above it). `pace: 0.7` = faster cuts. `sync: half` (default, cut every 2 beats) · `beat` · `bar` · `off`. `volume: 0.8`. `pulse: false` removes the beat zoom.
 - Voice: `tts: auto` (piper → say/Windows → espeak) · `voice: <voice name>` · `rate: 1.1` · `captions: false` · `capwords: 6`.
 - `marquee: "TEXT ★ TEXT ★"` scrolling band. `mascot: path` (desk) hops between cards. `cursor: Name` tags the `check` cursor.
-- Other types: `bullets`, `term`, `bars`, `quote`, `profile`, `clock`, `pin`, `cta`, `raw` (custom HTML — last resort, tell the user).
+- Other types: `kinetic`, `sting`, `split`, `device`, `grid`, `timeline`, `bullets`, `term`, `bars`, `quote`, `profile`, `clock`, `pin`, `cta`, `raw` (custom HTML — last resort, tell the user). Fields: `mg catalog <type>`.
 
 ## Writing rules that decide quality
 
@@ -107,9 +122,9 @@ scenes:
 - 3–4 items per scene; split rather than shrink. `fitNN%` under 80 in lint = too much text — cut words.
 - Voice lines ≤ 2 short sentences per scene; captions are the narration, so write it the way it should read.
 - Shorts 20–45s, 5–9 scenes; product tours up to 60s. Open with `hook`, end with `cta`/`ticket`.
-- Show, don't list: prefer `image`, `flow`, `loop`, `compare`, `chat` over `bullets`.
+- Show, don't list: prefer `image`, `split`, `device`, `flow`, `loop`, `compare`, `chat` over `bullets`. Open with `kinetic` or `hook`, mix at least 4 scene types.
 
 ## Token budget (keep a whole video inside a small plan)
 
 One pass = this file once + spec (~300–700 tokens) + lint text + one sheet image (~1–3k). Footage and voice add no tokens: you never look at frames or hear audio. To stay there: no engine source,
-no per-file image reads, no full-file rewrites, no re-viewing unchanged scenes, no rendered-frame reads, at most 2 full sheets per video.
+no per-file image reads, no full-file rewrites, no re-viewing unchanged scenes, no rendered-frame reads, at most 2 full sheets per video; one `remix` image replaces trial-and-error renders when exploring styles.

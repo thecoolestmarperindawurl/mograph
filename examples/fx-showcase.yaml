@@ -1,0 +1,25 @@
+# v0.6 showcase: every new scene type. Change meta.look / meta.seed (or run `remix`) to restyle it in one line.
+meta: {size: "9:16", look: bold, theme: lanhmar, music: upbeat, max: 60}
+scenes:
+  - kinetic: ["Một *ý tưởng*", "Vài dòng kịch bản", "Agent *dựng video*", "Có nhạc, có beat"]
+  - sting: lanhmar/assets/logo-lanhmar.png
+    sub: Học và làm cùng *AI*
+  - split: lanhmar/assets/tool-pdf-editor.jpg
+    kicker: Công cụ online
+    title: Sửa PDF *như sửa chữ*
+    points: [Giữ nguyên phông, Giữ bố cục]
+  - device: lanhmar/assets/shot-kho-bau-m.jpg
+    frame: phone
+    title: Lướt *Kho báu*
+    lower: "lanhmar.id.vn|Kho báu"
+  - grid: [lanhmar/assets/app-t-outbox.jpg, lanhmar/assets/tool-pdf-editor.jpg, lanhmar/assets/tool-ai-convert.jpg, lanhmar/assets/tool-drive-ebook-reader.jpg]
+    title: 5 công cụ *miễn phí*
+  - timeline: ["Bước 1|Viết kịch bản", "Bước 2|Lint bằng chữ", "Bước 3|Duyệt 1 ảnh", "Bước 4|Xuất MP4"]
+    title: Quy trình *4 bước*
+  - image: lanhmar/assets/app-t-outbox.jpg
+    fill: true
+    kicker: Plugin Claude Code
+    title: Văn phòng 3D cho *đội AI*
+    lower: "T-outbox|Miễn phí · mã nguồn mở"
+  - cta: Ghé *lanhmar.id.vn*
+    button: Xem Kho báu

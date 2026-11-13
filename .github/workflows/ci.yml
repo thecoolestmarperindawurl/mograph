@@ -37,9 +37,15 @@ jobs:
         run: node skills/motion-video/scripts/mograph.mjs render examples/workshop-invite.yaml --draft -o out-desk.mp4
       - name: Render (footage + voice + captions)
         run: node skills/motion-video/scripts/mograph.mjs render examples/feature-tour.yaml --draft -o out-features.mp4
+      - name: Render (looks + new scenes)
+        run: node skills/motion-video/scripts/mograph.mjs render examples/fx-showcase.yaml --draft --scenes 1-4 -o out-fx.mp4
+      - name: Remix sheet
+        run: node skills/motion-video/scripts/mograph.mjs remix examples/fx-showcase.yaml --looks glitch,cinematic -o out-remix.jpg
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: renders-${{ matrix.os }}
-          path: out-*.mp4
+          path: |
+            out-*.mp4
+            out-*.jpg
           if-no-files-found: ignore

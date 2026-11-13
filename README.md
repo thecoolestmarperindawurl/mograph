@@ -95,9 +95,32 @@ node skills/motion-video/scripts/mograph.mjs render examples/ai-agent-explainer.
 | `sheet <spec> [--scenes 2,5-6] [--frames 3] [-o f.jpg]` | Contact sheet để QA hình ảnh |
 | `render <spec> [--draft] [--scenes 1-3] [--size 16:9] [-o f.mp4]` | Xuất MP4 (`--draft`: nửa độ phân giải, 15fps) |
 | `assets <dir> [--sheet]` | Liệt kê ảnh/video/nhạc kèm gợi ý cách dùng |
+| `remix <spec> [--looks a,b] [--seeds 1,2]` | Một ảnh so sánh nhiều look/seed |
 | `doctor` | Kiểm tra Node, trình duyệt, ffmpeg, trình đọc giọng; in lệnh cài còn thiếu |
 | `music --style upbeat --dur 40 -o a.wav` | Xuất riêng bản nhạc có sẵn |
 | `beat <audio>` | Dò BPM file nhạc của bạn |
+
+## Look: đổi cả phong cách bằng một từ
+
+Thêm `look:` vào `meta` là đổi toàn bộ ngôn ngữ chuyển động: kiểu chữ động, chuyển cảnh, nền, lớp hiệu ứng.
+Engine tự biến tấu từng cảnh trong phạm vi look đó; `seed: 2` cho ra một biến tấu khác. Agent không phải viết hiệu ứng cho từng cảnh.
+
+| Look | Chữ động | Chuyển cảnh | Nền + lớp phủ | Hợp với |
+|---|---|---|---|---|
+| `clean` | rise · mask · blur | fade · slide · zoom | glow | doanh nghiệp, giải thích |
+| `bold` | pop · stamp · chars | punch · whip · flash | stripes, hình khối, rung máy | short-form mạng xã hội |
+| `kinetic` | mask · chars · stamp | whip · split · punch | trơn, grain | video chữ là chính |
+| `glitch` | scramble · glitch · type | glitch · cut · whip | lưới, scanline, tách màu RGB | công nghệ, AI (dùng vừa phải) |
+| `cinematic` | blur · mask · rise | fade · circle · zoom | aurora, vignette, grain, light leak | câu chuyện thương hiệu |
+| `editorial` | mask · highlight · type | diagonal · split · slide | halftone, grain | kiểu tạp chí |
+| `playful` | wave · pop · split | circle · flash · punch | mesh, hình khối | vui, lifestyle |
+
+`mograph remix <spec>` dựng nhiều look/seed của cùng một spec rồi gộp vào **một ảnh** (khoảng 1.000 token) để chọn hướng,
+thay vì render thử nhiều lần. Danh sách đầy đủ: `mograph catalog looks`, `mograph catalog fx`.
+
+Các nhóm hiệu ứng được chọn theo những loại template dùng nhiều nhất trên các công cụ dựng phổ biến (tiêu đề và lower third,
+kinetic typography, chuyển cảnh, logo reveal, chữ typewriter/bounce/slide, glitch). Tất cả được viết lại từ đầu trong engine;
+repo không chứa template, asset hay mã của CapCut, Premiere Pro hay bên thứ ba nào.
 
 ## Hai phong cách
 
@@ -112,7 +135,8 @@ Footage + giọng đọc + chuyển cảnh: xem `examples/feature-tour.yaml`.
 ## Scene types
 
 `hook` · `bullets` · `flow` · `loop` · `compare` · `chat` · `term` · `stat` · `bars` · `quote` · `image` · `clip` · `cta` ·
-`profile` · `check` · `clock` · `pin` · `ticket` · `recap` · `raw`. Xem `examples/kitchen-sink.yaml`.
+`profile` · `check` · `clock` · `pin` · `ticket` · `recap` · `raw` · `kinetic` · `sting` · `split` · `device` · `grid` · `timeline`,
+cộng `lower: "Tên|Vai trò"` (lower third) cho mọi cảnh. Xem `examples/kitchen-sink.yaml` và `examples/fx-showcase.yaml`.
 
 ## Brand
 

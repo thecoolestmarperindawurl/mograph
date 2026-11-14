@@ -547,7 +547,7 @@
       if (card && s.image) { const pre = c.h('img', 'g3pre', null, host); pre.src = s.image; s._img = pre; }
       const g = make3d(kind, host, s);
       c.tl.live(lt => g(lt));
-      return { end: Math.max(t, 1.2), read: 0.6 };
+      return { end: Math.max(t, 1.2), read: card ? 1.8 : 1 };
     },
     recap() { return { end: 1.5, read: 0.1, dur: 1.7 }; },
     raw(s, c) {

@@ -1,23 +1,24 @@
-# Video giới thiệu mograph 0.6 cho thẻ Kho báu (lanhmar.id.vn), dựng bằng chính mograph.
-meta: {size: "1280x720", look: bold, seed: 1, theme: lanhmar, music: upbeat, marquee: "MOGRAPH ★ LANHMAR ★ KHO BÁU ★", max: 50}
+# Video giới thiệu mograph 0.7 cho thẻ Kho báu / Storage (lanhmar.id.vn), dựng bằng chính mograph.
+meta: {size: "1280x720", look: bold, seed: 1, theme: lanhmar, music: upbeat, marquee: "MOGRAPH ★ LANHMAR ★ KHO BÁU ★", max: 55}
 scenes:
-  - kinetic: ["Một *ý tưởng*", "Vài dòng kịch bản", "Agent *dựng video*", "Nhạc khớp *beat*"]
-  - sting: assets/logo-lanhmar.png
-    sub: Plugin *mograph* cho Claude Code
-  - chat: ["u: Làm video 30 giây giới thiệu Kho báu, trẻ trung", "t: mograph remix kho-bau.yaml", "t: mograph render kho-bau.yaml", "a: Xong: kho-bau.mp4, có nhạc khớp beat."]
+  - 3d: particles
+    kicker: Plugin Claude Code
+    title: Video motion graphic từ *vài dòng chữ*
+  - kinetic: ["Bạn có *ý tưởng*", "Agent viết kịch bản", "Engine *dựng video*", "Nhạc khớp *beat*"]
+  - chat: ["u: Làm video 30 giây giới thiệu Kho báu, trẻ trung", "t: mograph remix kho-bau.yaml", "t: mograph render kho-bau.yaml", "a: Xong: kho-bau.mp4, kèm phụ đề và ảnh bìa."]
     title: Bạn giao việc, *agent dựng*
-  - device: assets/kho-bau-demo.mp4
-    frame: laptop
-    to: 6
+  - 3d: card
+    image: assets/result-frame.jpg
     kicker: Kết quả thật
     title: Video Kho báu
-  - grid: [assets/look-bold.jpg, assets/look-cinematic.jpg, assets/look-clean.jpg, assets/look-playful.jpg]
+    caption: Ảnh sản phẩm thành thẻ 3D
+  - grid: [assets/look-bold.jpg, assets/look-cinematic.jpg, assets/look-editorial.jpg, assets/look-playful.jpg]
     title: 1 kịch bản, *7 phong cách*
     caption: Đổi bằng một từ trong kịch bản
-  - stat: "26"
+  - 3d: object
+    shape: knot
     kicker: Dựng sẵn
-    label: kiểu cảnh, 12 kiểu chữ động, 13 chuyển cảnh
-    src: mograph 0.6
+    title: 28 kiểu cảnh, *có cả 3D*
   - term: ["$ /plugin marketplace add thecoolestmarperindawurl/mograph", "$ /plugin install mograph@mograph", "√ Successfully installed plugin: mograph@mograph"]
     title: Cài bằng *2 lệnh*
     name: Claude Code

@@ -125,6 +125,12 @@ Các nhóm hiệu ứng được chọn theo những loại template dùng nhi�
 kinetic typography, chuyển cảnh, logo reveal, chữ typewriter/bounce/slide, glitch). Tất cả được viết lại từ đầu trong engine;
 repo không chứa template, asset hay mã của CapCut, Premiere Pro hay bên thứ ba nào.
 
+## 3D, Manim và đầu ra
+
+- `3d: card | object | particles` dựng bằng three.js (MIT, đóng gói sẵn trong `engine/vendor`, chỉ nạp khi dùng): thẻ ảnh sản phẩm nghiêng xoay có bóng đổ, khối 3D màu thương hiệu sau tiêu đề, trường hạt tăng tốc theo beat. Render chậm hơn cảnh thường khoảng 3 lần trên máy không có GPU.
+- `manim: file.py` (tuỳ chọn): nếu máy đã cài [Manim](https://docs.manim.community), agent viết một Scene ngắn cho công thức, đồ thị hàm, hình học; mograph render rồi ghép như footage, màu thương hiệu truyền qua biến môi trường `MOGRAPH_BG/FG/AC/AC2`. `doctor` cho biết máy có Manim hay không.
+- Âm thanh được chuẩn hoá về -14 LUFS (đổi bằng `meta.lufs`). Video có lời đọc xuất kèm phụ đề `.srt`. `render --thumb --gif --webm` xuất thêm ảnh bìa, GIF, WebM.
+
 ## Hai phong cách
 
 - `style: slides` (mặc định): mỗi scene một cảnh, hợp video giải thích và shorts. Xem `examples/ai-agent-explainer.yaml`.
@@ -138,7 +144,7 @@ Footage + giọng đọc + chuyển cảnh: xem `examples/feature-tour.yaml`.
 ## Scene types
 
 `hook` · `bullets` · `flow` · `loop` · `compare` · `chat` · `term` · `stat` · `bars` · `quote` · `image` · `clip` · `cta` ·
-`profile` · `check` · `clock` · `pin` · `ticket` · `recap` · `raw` · `kinetic` · `sting` · `split` · `device` · `grid` · `timeline`,
+`profile` · `check` · `clock` · `pin` · `ticket` · `recap` · `raw` · `kinetic` · `sting` · `split` · `device` · `grid` · `timeline` · `3d` · `manim` (tuỳ chọn),
 cộng `lower: "Tên|Vai trò"` (lower third) cho mọi cảnh. Xem `examples/kitchen-sink.yaml` và `examples/fx-showcase.yaml`.
 
 ## Brand
@@ -167,6 +173,8 @@ examples/
 ```
 
 Thêm scene type mới: một builder trong `engine/engine.js`, CSS trong `style.css`, một dòng trong `scripts/schema.mjs`.
+
+Ghi nguồn bên thứ ba: `skills/motion-video/engine/vendor/NOTICE.md` (three.js; một số nguyên tắc chuyển động theo tài liệu của HyperFrames, Apache-2.0).
 
 ## Giới hạn hiện tại
 

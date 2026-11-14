@@ -399,3 +399,16 @@ em.hl{background-image:linear-gradient(transparent 58%,color-mix(in srgb,var(--a
 .mg-hit .burst{position:absolute;inset:0;display:none}
 .mg-hit .burst i{position:absolute;left:0;top:0;width:.45em;height:.45em;margin:-.225em;border-radius:50%;background:var(--ac)}
 .mg-hit .burst i:nth-child(3n){background:var(--ac2)}.mg-hit .burst i:nth-child(4n){border-radius:.1em;width:.35em;height:.35em}
+
+/* 3D */
+.g3 canvas{display:block;width:100%;height:100%}
+.g3.full{position:absolute;inset:0;z-index:0}
+.mg-scene:has(.g3.full) .mg-c{z-index:1}
+.g3.card{width:100%;height:20em;align-self:center}
+.land .g3.card{height:12.5em}
+.port .t-3d:has(.g3.full) .mg-i{margin:auto 0 4%}
+.land .t-3d:has(.g3.full) .mg-i{margin:auto auto auto 0;width:55%;align-items:flex-start;text-align:left}
+.land .t-3d:has(.g3.full) .kicker{align-self:flex-start}
+.g3pre{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
+.g3.card{position:relative}
+.w.ink{color:color-mix(in srgb,currentColor calc(var(--ink,0) * 100%),color-mix(in srgb,var(--mut) 45%,transparent))}

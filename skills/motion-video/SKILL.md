@@ -34,7 +34,7 @@ Needs Node 18+, Google Chrome/Edge (or `MOGRAPH_CHROME`), ffmpeg. If anything fa
    Over `max`: set `pace: 0.8`, trim clips, shorten voice lines, or drop a scene. Up to ~2s over is fine — say so instead of looping.
 7. **`mg sheet <spec>`** — ONE contact-sheet image of every scene; look once. After fixes re-check only what changed
    (`--scenes 3,5`). A `recap` frame looks empty in the sheet — that is its end state, not a bug. `sheet` and `render` re-run lint themselves.
-   Then **`mg render <spec>`** → MP4 (`--draft` for a quick preview, `--size 16:9` for another ratio). Lint prints `⏱ render ≈ Ns`:
+   Then **`mg render <spec>`** → MP4 (+ `.srt` captions when voiced; `--thumb` cover, `--gif`, `--webm` on request; audio is normalised to -14 LUFS) (`--draft` for a quick preview, `--size 16:9` for another ratio). Lint prints `⏱ render ≈ Ns`:
    if that is over ~100s, start render in the background (or with a 10-minute timeout) and wait for its completion — never poll it,
    and ignore `*.part.mp4` (the file appears under its real name only when finished).
 
@@ -48,6 +48,8 @@ Do not read rendered frames or the video back; do not open engine source unless 
 | Opening line, section title | `hook` | word-by-word reveal |
 | Opener / hype line, a slogan broken into beats | `kinetic` (2–8 phrases ≤5 words) | full-screen type, one phrase per beat |
 | Brand / logo intro or outro | `sting` (logo path + `sub`) | ring draws, rays burst, logo pops |
+| A hero moment in 3D | `3d: card` (+ `image`) product slab · `3d: object` brand shape behind a title · `3d: particles` beat-reactive field | real depth; renders ~3x slower, use 1–2 per video |
+| A formula, function graph, geometry | `manim: file.py` (optional, only if `mg doctor` lists Manim; you write a short Manim Scene) | precise math animation |
 | A product / screenshot / photo | `image` (+ `title`, `kicker`, `caption`) · `fill: true` full-screen photo | image dominates the card, slow zoom |
 | A product next to its benefits | `split` (image + `title`, `points`) | half image, half text |
 | An app or website | `device` (phone/laptop mockup; tall screenshot scrolls, video plays) | looks like the real product |

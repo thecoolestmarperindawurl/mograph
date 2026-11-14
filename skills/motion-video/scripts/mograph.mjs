@@ -6,9 +6,9 @@ import path from 'node:path';
 import { spawn, spawnSync } from 'node:child_process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { createRequire } from 'node:module';
-import { normalize, catalog } from './schema.mjs';
+import { normalize, catalog, themeColors } from './schema.mjs';
 import { STYLES, synth, detectBeat } from './audio.mjs';
-import { probe, prepClip, prepVoices, mixAudio, ttsEngines, CACHE } from './media.mjs';
+import { probe, prepClip, prepVoices, mixAudio, ttsEngines, writeSrt, extras, prepManim, manimCmd, CACHE } from './media.mjs';
 
 const require = createRequire(import.meta.url);
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -46,14 +46,14 @@ function load(file) {
   const r = normalize(raw), dir = path.dirname(path.resolve(file));
   if (r.spec) {
     const res = (o, k) => { if (!o[k] || /^(https?|file|data):/.test(o[k])) return; const p = path.resolve(dir, o[k]); if (!fs.existsSync(p)) r.errors.push(`file not found: ${o[k]}`); o[k] = pathToFileURL(p).href; };
-    for (const s of r.spec.scenes) for (const k of ['image', 'logo', 'avatar']) if (k !== 'image' || s.type === 'image') res(s, k);
+    for (const s of r.spec.scenes) for (const k of ['image', 'logo', 'avatar']) if (k !== 'image' || s.type === 'image' || s.type === '3d') res(s, k);
     const VID = /\.(mp4|mov|webm|m4v)$/i;
     for (const s of r.spec.scenes) {
       for (const k of ['split', 'device', 'sting']) if (s.type === k) res(s, k);
       if (s.type === 'grid' && Array.isArray(s.grid)) s.grid = s.grid.map(g => { const o = { g }; res(o, 'g'); return o.g; });
       if (s.type === 'device' && VID.test(s.device)) s.clip = fileURLToPath(s.device);
     }
-    for (const s of r.spec.scenes) for (const k of s.type === 'clip' ? ['clip', 'vo'] : ['vo']) if (s[k]) { const p = path.resolve(dir, s[k]); if (!fs.existsSync(p)) r.errors.push(`file not found: ${s[k]}`); else s[k] = p; }
+    for (const s of r.spec.scenes) for (const k of s.type === 'clip' ? ['clip', 'vo'] : s.type === 'manim' ? ['manim', 'vo'] : ['vo']) if (s[k]) { const p = path.resolve(dir, s[k]); if (!fs.existsSync(p)) r.errors.push(`file not found: ${s[k]}`); else s[k] = p; }
     res(r.spec.meta, 'mascot');
     if (r.spec.meta.audio) { r.spec.meta.audio = path.resolve(dir, r.spec.meta.audio); if (!fs.existsSync(r.spec.meta.audio)) r.errors.push(`audio not found: ${r.spec.meta.audio}`); }
   }
@@ -73,14 +73,15 @@ function prepBeat(spec) {
 // footage frames + voiceover, before the engine measures timing
 function prepMedia(r, fps, maxW) {
   const ff = ffbin(), sp = r.spec, notes = [];
-  for (const s of sp.scenes) if (s.type === 'clip' || (s.type === 'device' && s.clip)) try { prepClip(ff, s, fps, maxW); } catch (e) { r.errors.push(e.message); }
+  for (const s of sp.scenes) if (s.type === 'manim') try { const full = !!s.fill; prepManim(ff, s, { w: full ? sp.meta.w : 1280, h: full ? sp.meta.h : 720, fps, colors: themeColors(sp.meta.theme) }); } catch (e) { r.errors.push(e.message); }
+  for (const s of sp.scenes) if (s.type === 'clip' || (s.type === 'device' && s.clip) || (s.type === 'manim' && s.clip)) try { prepClip(ff, s, fps, maxW); } catch (e) { r.errors.push(e.message); }
   try { const v = prepVoices(ff, sp, r.dir); if (v) { r.voice = v; notes.push(...v.notes); } } catch (e) { r.errors.push(e.message); }
   r.warns.push(...notes);
 }
 async function browser() {
   const pw = need(['playwright-core', 'playwright'], `missing deps — run: cd "${ROOT}" && npm install`);
   const tries = process.env.MOGRAPH_CHROME ? [{ executablePath: process.env.MOGRAPH_CHROME }] : [{}, { channel: 'chrome' }, { channel: 'msedge' }];
-  for (const o of tries) try { return await pw.chromium.launch({ ...o, args: ['--font-render-hinting=none', '--disable-lcd-text'] }); } catch {}
+  for (const o of tries) try { return await pw.chromium.launch({ ...o, args: ['--font-render-hinting=none', '--disable-lcd-text', '--allow-file-access-from-files', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] }); } catch {}
   die('no Chromium/Chrome found — install Google Chrome or set MOGRAPH_CHROME=/path/to/chrome');
 }
 async function stagePage(br, spec, scale = 1) {
@@ -161,6 +162,7 @@ async function doctor() {
   let ff = null; try { ff = process.env.MOGRAPH_FFMPEG || (spawnSync('ffmpeg', ['-version']).status === 0 ? 'ffmpeg' : require('ffmpeg-static')); } catch {}
   if (ff && spawnSync(ff, ['-version']).status === 0) ok.push('ffmpeg ' + (spawnSync(ff, ['-version']).stdout.toString().match(/version (\S+)/) || [])[1]); else bad.push('ffmpeg missing — ' + hint.ff);
   try { const pw = require('playwright-core'); let b = null; for (const o of process.env.MOGRAPH_CHROME ? [{ executablePath: process.env.MOGRAPH_CHROME }] : [{}, { channel: 'chrome' }, { channel: 'msedge' }]) { try { b = await pw.chromium.launch(o); break; } catch {} } if (b) { ok.push('browser ' + b.version()); await b.close(); } else bad.push('no Chrome/Edge/Chromium — ' + hint.chrome); } catch {}
+  ok.push(manimCmd() ? 'manim (optional): ' + manimCmd().join(' ') : 'manim (optional): not installed — only needed for `manim` scenes');
   const t = ttsEngines(); (t.length ? ok : bad).push(t.length ? 'voice: ' + t.join(', ') : 'no text-to-speech (only needed for `voice:`) — ' + hint.tts);
   console.log(`${os_} · cache ${CACHE}\n` + ok.map(x => '  ok   ' + x).join('\n') + (bad.length ? '\n' + bad.map(x => '  MISS ' + x).join('\n') : ''));
   process.exitCode = bad.some(x => !/text-to-speech/.test(x)) ? 1 : 0;
@@ -176,7 +178,7 @@ async function main() {
   if (cmd === 'assets') return assets(pos[0] || '.');
   if (cmd === 'doctor') return doctor();
   if (!['lint', 'sheet', 'render', 'remix'].includes(cmd)) {
-    return console.log('mograph <command> <spec.yaml>\n  catalog [type]                 scene types / fields (read on demand)\n  lint <spec>                    validate + measure text fit + timing (text only, no images)\n  sheet <spec> [--scenes 2,5-6] [--frames 3] [-o sheet.jpg]   contact sheet for visual QA\n  doctor                         check node, browser, ffmpeg, voice engines (prints install hints)\n  assets <dir> [--sheet]         list images/audio with size + how to use each (text; --sheet adds one thumbnail image)\n  music --style upbeat --dur 40 -o track.wav   write a built-in track · beat <audio>   detect BPM of your own file\n  remix <spec> [--looks bold,kinetic,editorial] [--seeds 1,2] [--scenes 1-4] [-o f.jpg]   one image comparing looks/seeds (rows) across scenes\n  render <spec> [--draft] [--scenes 1-3] [-o out.mp4]         render video\n  any command: --size 16:9   override meta.size (same spec, another aspect ratio)');
+    return console.log('mograph <command> <spec.yaml>\n  catalog [type]                 scene types / fields (read on demand)\n  lint <spec>                    validate + measure text fit + timing (text only, no images)\n  sheet <spec> [--scenes 2,5-6] [--frames 3] [-o sheet.jpg]   contact sheet for visual QA\n  doctor                         check node, browser, ffmpeg, voice engines (prints install hints)\n  assets <dir> [--sheet]         list images/audio with size + how to use each (text; --sheet adds one thumbnail image)\n  music --style upbeat --dur 40 -o track.wav   write a built-in track · beat <audio>   detect BPM of your own file\n  remix <spec> [--looks bold,kinetic,editorial] [--seeds 1,2] [--scenes 1-4] [-o f.jpg]   one image comparing looks/seeds (rows) across scenes\n  render <spec> [--draft] [--scenes 1-3] [--thumb] [--gif] [--webm] [-o out.mp4]   render video (+ .srt if voiced, cover jpg, GIF, WebM)\n  any command: --size 16:9   override meta.size (same spec, another aspect ratio)');
   }
   const r = load(pos[0]);
   if (!r.spec) { report(r, null); process.exit(1); }
@@ -259,7 +261,7 @@ async function main() {
       let mus = m.audio || null;
       if (m.music) { mus = out + '.music.wav'; tmp.push(mus); synth({ style: m.music, bpm: m.bpm, dur: info.total, out: mus }); }
       const mix = out + '.mix.wav'; tmp.push(mix);
-      audio = mixAudio(ff, { music: mus, info, scenes: r.spec.scenes, volume: m.volume ?? (r.voice ? 0.55 : 0.8), out: mix });
+      audio = mixAudio(ff, { music: mus, info, scenes: r.spec.scenes, volume: m.volume ?? (r.voice ? 0.55 : 0.8), out: mix, lufs: m.lufs ?? -14 });
     }
     const args = ['-y', '-loglevel', 'error', '-f', 'image2pipe', '-framerate', String(fps), '-c:v', 'mjpeg', '-i', '-',
       ...(audio ? ['-i', audio, '-c:a', 'aac', '-b:a', '192k', '-t', String(info.total)] : []),
@@ -280,7 +282,10 @@ async function main() {
     fs.renameSync(part, final);
     for (const f of tmp) fs.rmSync(f, { force: true });
     if (process.stdout.isTTY) process.stdout.write('\r');
-    console.log(`video → ${out} · ${info.total}s · ${total} frames@${fps} · ${(fs.statSync(out).size / 1e6).toFixed(1)}MB · ${((Date.now() - t0) / 1000).toFixed(0)}s render`);
+    console.log(`video → ${out} · ${info.total}s · ${total} frames@${fps} · ${(fs.statSync(out).size / 1e6).toFixed(1)}MB · ${((Date.now() - t0) / 1000).toFixed(0)}s render${audio ? ` · audio ${m.lufs ?? -14} LUFS` : ''}`);
+    if (!want) { const n = writeSrt(info, r.spec.scenes, out.replace(/\.mp4$/i, '.srt')); if (n) console.log(`captions → ${out.replace(/\.mp4$/i, '.srt')} · ${n} lines (upload as subtitles on YouTube/TikTok)`); }
+    const ex = extras(ff, out, { gif: opt.gif, webm: opt.webm, thumb: opt.thumb, thumbAt: Math.min(info.total - 0.1, info.scenes[0] ? info.scenes[0].start + Math.min(info.scenes[0].need, info.scenes[0].dur - 0.3) : 1.5) });
+    if (ex.length) console.log('extras → ' + ex.join(' · '));
   } finally { await br.close(); }
 }
 main().catch(e => die(e.message));

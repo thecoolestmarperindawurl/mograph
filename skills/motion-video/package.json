@@ -1,6 +1,6 @@
 {
   "name": "mograph",
-  "version": "0.6.1",
+  "version": "0.7.0",
   "description": "Spec-driven motion graphic video engine for AI agents",
   "type": "module",
   "bin": {

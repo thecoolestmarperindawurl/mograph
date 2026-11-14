@@ -22,8 +22,8 @@
     bold: { anim: ['pop', 'stamp', 'chars'], tr: ['punch', 'whip', 'flash'], bg: 'stripes', fx: ['shapes', 'shake'] },
     kinetic: { anim: ['mask', 'chars', 'stamp'], tr: ['whip', 'split', 'punch'], bg: 'plain', fx: ['grain'] },
     glitch: { anim: ['scramble', 'glitch', 'type'], tr: ['glitch', 'cut', 'whip'], bg: 'grid', fx: ['scan', 'rgb', 'grain'] },
-    cinematic: { anim: ['blur', 'mask', 'rise'], tr: ['fade', 'circle', 'zoom'], bg: 'aurora', fx: ['vignette', 'grain', 'leak'], pace: 1.15 },
-    editorial: { anim: ['mask', 'highlight', 'type'], tr: ['diagonal', 'split', 'slide'], bg: 'halftone', fx: ['grain'] },
+    cinematic: { anim: ['blur', 'ink', 'mask'], tr: ['fade', 'circle', 'dip'], bg: 'aurora', fx: ['vignette', 'grain', 'leak'], pace: 1.15 },
+    editorial: { anim: ['mask', 'highlight', 'ink'], tr: ['diagonal', 'split', 'dip'], bg: 'halftone', fx: ['grain'] },
     playful: { anim: ['wave', 'pop', 'split'], tr: ['circle', 'flash', 'punch'], bg: 'mesh', fx: ['shapes'] },
   };
   const mulberry = a => () => { a = (a + 0x6d2b79f5) >>> 0; let x = Math.imul(a ^ (a >>> 15), 1 | a); x = (x + Math.imul(x ^ (x >>> 7), 61 | x)) ^ x; return ((x ^ (x >>> 14)) >>> 0) / 4294967296; };
@@ -103,6 +103,7 @@
         const chars = () => out.flatMap(sp => { const g = graphemes(sp.textContent); sp.textContent = ''; return g.map(ch => { const e = document.createElement('span'); e.className = 'ch'; e.textContent = ch; sp.appendChild(e); return e; }); });
         if (A === 'pop') { out.forEach((sp, i) => tl.add(sp, { opacity: [0, 1], scale: [0.3, 1] }, at + i * stagger * 1.3, 0.5, 'back')); return last(n, stagger * 1.3, 0.5); }
         if (A === 'stamp') { out.forEach((sp, i) => tl.add(sp, { opacity: [0, 1], scale: [2.3, 1], blur: [10, 0] }, at + i * 0.11, 0.28, 'out5')); return last(n, 0.11, 0.28); }
+        if (A === 'ink') { out.forEach((sp, i) => { sp.classList.add('ink'); tl.fn(at + i * 0.085, 0.35, p => { sp.style.setProperty('--ink', p.toFixed(3)); }, 'out'); }); return last(n, 0.085, 0.35); }
         if (A === 'blur') { out.forEach((sp, i) => tl.add(sp, { opacity: [0, 1], blur: [30, 0], scale: [1.08, 1] }, at + i * stagger * 0.6, 0.9, 'out')); return last(n, stagger * 0.6, 0.9); }
         if (A === 'mask') {
           out.forEach((sp, i) => { const inner = document.createElement('span'); inner.className = 'mi'; inner.textContent = sp.textContent; sp.textContent = ''; sp.classList.add('mk'); sp.appendChild(inner);
@@ -460,6 +461,7 @@
       if (s.pills) { const pw = c.h('div', 'pills', '', L); s.pills.forEach((x, i) => c.pop(c.h('span', '', rich(x), pw), t + i * 0.12, 0.45)); t += s.pills.length * 0.12 + 0.4; }
       return { end: t, read: 2.6 };
     },
+    manim(s, c) { return B.clip(s, c); },
     // kinetic typography: one short phrase per beat-length slot, each with its own animation and layout
     kinetic(s, c) {
       c.el.classList.add('kin-host');
@@ -529,6 +531,24 @@
       s.timeline.forEach((it, i) => { const [a, b] = pair(it); c.pop(c.h('div', 'tit', `<span class="tdot"></span><b>${rich(a)}</b>${b ? `<small>${rich(b)}</small>` : ''}`, box), c.bq(t + 0.15) + i * c.bs(0.35), 0.5); });
       return t + n * 0.35 + 0.6;
     },
+    // 3D (three.js, loaded only when used): card = image on a floating slab, object = brand-coloured hero shape, particles = beat-reactive field
+    '3d'(s, c) {
+      const kind = s['3d'], card = kind === 'card';
+      let t = 0, host;
+      if (card) { t = c.head(s); host = c.h('div', 'g3 card'); }
+      else {
+        c.el.classList.add('center');
+        const sc = c.el.closest('.mg-scene'); host = document.createElement('div'); host.className = 'g3 full'; sc.insertBefore(host, sc.firstChild);
+        if (s.kicker) { c.up(c.h('div', 'kicker', rich(s.kicker)), 0.5, 0.5, 0.4); t = 0.65; } else t = 0.5;
+        if (s.title) t = c.words(c.h('h1', 'big sm'), s.title, t, 0.07);
+      }
+      if (s.caption || s.sub) t = c.up(c.h('p', 'sub', rich(s.caption || s.sub)), t - 0.1);
+      c.tl.add(host, { opacity: [0, 1] }, 0, 0.5);
+      if (card && s.image) { const pre = c.h('img', 'g3pre', null, host); pre.src = s.image; s._img = pre; }
+      const g = make3d(kind, host, s);
+      c.tl.live(lt => g(lt));
+      return { end: Math.max(t, 1.2), read: 0.6 };
+    },
     recap() { return { end: 1.5, read: 0.1, dur: 1.7 }; },
     raw(s, c) {
       c.el.insertAdjacentHTML('beforeend', s.raw);
@@ -546,10 +566,78 @@
     : typeof v === 'string' ? v.split(/\s+/).filter(Boolean).length
     : v && typeof v === 'object' ? Object.entries(v).reduce((n, [kk, vv]) => n + countWords(vv, Array.isArray(v) ? '' : kk) + (Array.isArray(v) ? 0 : 0), 0) : 0);
 
+
+  // ---------- three.js scenes ----------
+  function cssColor(name, fb) { const v = getComputedStyle(document.getElementById('stage')).getPropertyValue(name).trim(); return /^#|^rgb/.test(v) ? v : fb; }
+  function beatEnv(gt) { const b = S && S.beat; if (!b) return 0; const x = (gt - b.o) / b.p, k = Math.floor(x), w = (((k % 4) + 4) % 4) === 0 ? 1 : 0.45; return gt < b.o ? 0 : Math.exp(-(x - k) * 6) * w; }
+  function make3d(kind, host, s) {
+    let R = null, scene, cam, upd;
+    const T = window.THREE;
+    const setup = () => {
+      const w = host.clientWidth, h = host.clientHeight; if (!w || !h) return false;
+      R = new T.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
+      R.setPixelRatio(1); R.setSize(w, h); R.outputColorSpace = T.SRGBColorSpace; host.appendChild(R.domElement);
+      scene = new T.Scene(); cam = new T.PerspectiveCamera(kind === 'card' ? 30 : 38, w / h, 0.1, 200);
+      const ac = new T.Color(cssColor('--ac', '#ff7a45')), ac2 = new T.Color(cssColor('--ac2', '#6a5cff')), head = new T.Color(cssColor('--head', cssColor('--fg', '#222')));
+      const key = new T.DirectionalLight(0xffffff, 2.4); key.position.set(4, 5, 6);
+      const rim = new T.DirectionalLight(ac2, 1.6); rim.position.set(-5, 2, -4);
+      scene.add(key, rim, new T.AmbientLight(0xffffff, 0.9));
+      const rnd = i => { const x = Math.sin(i * 12.9898 + 78.233) * 43758.5453; return x - Math.floor(x); };
+      if (kind === 'card') {
+        const img = s._img; if (!img || !img.naturalWidth) return false;
+        const tex = new T.Texture(img); tex.colorSpace = T.SRGBColorSpace; tex.anisotropy = 4; tex.needsUpdate = true;
+        const ar = img.naturalWidth / img.naturalHeight, cw = 4, ch = cw / ar;
+        const side = new T.MeshStandardMaterial({ color: new T.Color('#e6e2f6'), roughness: 0.55 });
+        const slab = new T.Mesh(new T.BoxGeometry(cw, ch, 0.16), [side, side, side, side, new T.MeshStandardMaterial({ map: tex, roughness: 0.45 }), side]);
+        const shc = document.createElement('canvas'); shc.width = shc.height = 128; const sg = shc.getContext('2d'), gr = sg.createRadialGradient(64, 64, 4, 64, 64, 64); gr.addColorStop(0, 'rgba(20,10,60,.55)'); gr.addColorStop(1, 'rgba(20,10,60,0)'); sg.fillStyle = gr; sg.fillRect(0, 0, 128, 128);
+        const shadow = new T.Mesh(new T.PlaneGeometry(cw * 1.1, cw * 0.35), new T.MeshBasicMaterial({ map: new T.CanvasTexture(shc), transparent: true, depthWrite: false }));
+        shadow.rotation.x = -Math.PI / 2; shadow.position.y = -ch / 2 - 0.55;
+        const grp = new T.Group(); grp.add(slab); scene.add(grp, shadow);
+        const fit = Math.max(cw / (0.84 * cam.aspect), ch / 0.78) / (2 * Math.tan((cam.fov * Math.PI) / 360));
+        cam.position.set(0, 0.25, fit);
+        upd = (lt, e) => { const p = ease.out5(clamp(lt / 1.2)); grp.position.y = (1 - p) * -1.6 + Math.sin(lt * 1.1) * 0.05; grp.rotation.y = -0.75 * (1 - p) - 0.28 + Math.sin(lt * 0.6) * 0.16; grp.rotation.x = 0.25 * (1 - p) + 0.06 + Math.cos(lt * 0.5) * 0.05; grp.rotation.z = Math.sin(lt * 0.4) * 0.02; grp.scale.setScalar(1 + 0.025 * e); shadow.material.opacity = 0.7 * p; };
+      } else if (kind === 'object') {
+        const geo = { sphere: () => new T.IcosahedronGeometry(1.5, 5), ring: () => new T.TorusGeometry(1.3, 0.42, 48, 160), cube: () => new T.BoxGeometry(2, 2, 2, 4, 4, 4) }[s.shape] || (() => new T.TorusKnotGeometry(1.15, 0.36, 240, 36));
+        const mesh = new T.Mesh(geo(), new T.MeshStandardMaterial({ color: head, roughness: 0.42, metalness: 0.35 }));
+        const N = 260, pg = new T.BufferGeometry(), pos = new Float32Array(N * 3); pg.setAttribute('position', new T.BufferAttribute(pos, 3));
+        const pts = new T.Points(pg, new T.PointsMaterial({ color: ac, size: 0.05 }));
+        scene.add(mesh, pts); cam.position.set(0, 0, 9 / Math.min(1, cam.aspect * 1.1));
+        const vh = cam.position.z * Math.tan((cam.fov * Math.PI) / 360); mesh.position.y = cam.aspect < 1 ? vh * 0.38 : 0; mesh.position.x = cam.aspect < 1 ? 0 : vh * cam.aspect * 0.45; if (cam.aspect < 1) mesh.scale.setScalar(0.9);
+        upd = (lt, e) => {
+          const p = ease.back(clamp(lt / 0.9)); mesh.scale.setScalar(Math.max(0.01, p) * (cam.aspect < 1 ? 0.9 : 1) * (1 + 0.06 * e)); mesh.rotation.set(lt * 0.5, lt * 0.8, 0);
+          for (let i = 0; i < N; i++) { const a = rnd(i) * 6.283 + lt * (0.15 + rnd(i + 7) * 0.35), r = 2.4 + rnd(i + 3) * 3; pos[i * 3] = Math.cos(a) * r; pos[i * 3 + 1] = (rnd(i + 5) - 0.5) * 7 + mesh.position.y; pos[i * 3 + 2] = Math.sin(a) * r - 2; }
+          pg.attributes.position.needsUpdate = true;
+        };
+      } else {
+        const N = 1600, pg = new T.BufferGeometry(), pos = new Float32Array(N * 3), col = new Float32Array(N * 3);
+        for (let i = 0; i < N; i++) { const cc = i % 3 ? ac : ac2; col.set([cc.r, cc.g, cc.b], i * 3); }
+        pg.setAttribute('position', new T.BufferAttribute(pos, 3)); pg.setAttribute('color', new T.BufferAttribute(col, 3));
+        const mat = new T.PointsMaterial({ size: 0.11, vertexColors: true, transparent: true, opacity: 0.9 });
+        scene.add(new T.Points(pg, mat)); cam.position.set(0, 0, 6);
+        let travel = 0, last = 0;
+        upd = (lt, e) => {
+          // travel = integral of speed; recomputed from the start so any frame can be drawn on its own
+          const sp = q => 2.2 + 6 * beatEnv(s._start + q); travel = 0; for (let q = 0; q < lt; q += 1 / 30) travel += sp(q) / 30; void last;
+          for (let i = 0; i < N; i++) { const z = (((rnd(i) * 40 + travel) % 40) + 40) % 40; pos[i * 3] = (rnd(i + 1) - 0.5) * 14; pos[i * 3 + 1] = (rnd(i + 2) - 0.5) * 24; pos[i * 3 + 2] = z - 34; }
+          mat.size = 0.11 * (1 + 0.8 * e); pg.attributes.position.needsUpdate = true;
+        };
+      }
+      return true;
+    };
+    return lt => {
+      if (!T) return;
+      if (S && S.desk && s._i != null && Math.abs(S._ai - s._i) > 1) return;
+      if (!R && !setup()) return;
+      upd(lt, beatEnv((s._start || 0) + lt)); R.render(scene, cam);
+    };
+  }
+
   let S = null;
-  const WIN = new Set(['bullets', 'flow', 'loop', 'compare', 'chat', 'bars', 'image', 'clip', 'profile', 'check', 'clock']);
+  const WIN = new Set(['bullets', 'flow', 'loop', 'compare', 'chat', 'bars', 'image', 'clip', 'manim', 'profile', 'check', 'clock', '3d']);
   const LEAD = 0.55, lerp = (a, b, p) => a + (b - a) * p;
   async function init(spec) {
+    if (spec.scenes.some(x => x.type === '3d') && !window.THREE) await new Promise((ok, no) => { const sc = document.createElement('script'); sc.src = 'vendor/three.min.js'; sc.onload = ok; sc.onerror = () => no(new Error('three.js failed to load')); document.head.appendChild(sc); });
+    spec.scenes.forEach((x, i) => { x._i = i; });
     const m = spec.meta, W = m.w, H = m.h, portrait = H > W * 1.1, desk = m.style === 'desk', SP = W * 1.14, SPY = H * 1.12;
     const lay = m.layout || 'row', gc = Math.ceil(Math.sqrt(spec.scenes.length));
     const place = i => lay === 'column' ? [0, i * SPY] : lay === 'zigzag' ? [i * SP * 0.8, (i % 2) * SPY * 0.75]
@@ -609,7 +697,7 @@
     }
 
     const scenes = spec.scenes.map((s, i) => {
-      const el = document.createElement('section'); el.className = 'mg-scene t-' + s.type; el.style.display = 'block';
+      const el = document.createElement('section'); el.className = 'mg-scene t-' + s.type + (s.type === 'manim' ? ' t-clip' : ''); el.style.display = 'block';
       const cbox = document.createElement('div'); cbox.className = 'mg-c';
       const inner = document.createElement('div'); inner.className = 'mg-i';
       let slot = null, frame = null;
@@ -627,13 +715,14 @@
         lo.className = 'lower'; lo.innerHTML = `<i></i><div><b>${rich(la)}</b>${lb ? `<span>${rich(lb)}</span>` : ''}</div>`; el.appendChild(lo);
         tl.add(lo.firstChild, { sy: [0, 1] }, 0.5, 0.35, 'out5'); tl.add(lo.lastChild, { opacity: [0, 1], x: [-1, 0] }, 0.62, 0.5, 'out5');
       }
-      if (!portrait && ['image', 'clip', 'loop'].includes(s.type) && !s.fill && inner.querySelector(':scope>.title,:scope>.kicker,:scope>.sub')) inner.classList.add('sp');
+      if (!portrait && ['image', 'clip', 'manim', 'loop'].includes(s.type) && !s.fill && inner.querySelector(':scope>.title,:scope>.kicker,:scope>.sub')) inner.classList.add('sp');
       const end = typeof r === 'number' ? r : r.end;
       const words = countWords(s, '');
       const read = (typeof r === 'object' && r.read) || Math.min(3.2, Math.max(1, words * 0.2 - end * 0.5));
       const last = i === spec.scenes.length - 1, lead = desk && i ? LEAD : 0;
       let auto = (r.dur || Math.min(10, Math.max(2.4, end + read * pace + (last ? 0.9 : 0.4)))) + lead;
       if (r.min) auto = Math.max(auto, r.min + lead);
+      if (last) auto = Math.max(auto, end + 2 + lead);
       const vo = s._vo || null;
       if (vo) auto = Math.max(auto, lead + vo.at + vo.dur + (last ? 0.9 : 0.35));
       return { el, cbox, inner, slot, frame, tl, type: s.type, end, lead, vo, tr: s._tr, dur: s.dur != null ? +s.dur : Math.round(auto * 10) / 10, fixed: s.dur != null, last };
@@ -700,6 +789,7 @@
           else if (o === 'whip') sc.tl.add(el, { x: [0, -X * 0.9], blur: [0, 40] }, sc.dur - 0.25, 0.25, 'in');
           else if (o === 'punch') sc.tl.add(el, { scale: [1, 1.35], blur: [0, 20], opacity: [1, 0] }, sc.dur - 0.25, 0.25, 'in');
           else if (o === 'fade') sc.tl.add(el, { opacity: [1, 0], y: [0, -0.7] }, a0, d, 'in');
+          else if (o === 'dip') sc.tl.fn(sc.dur - 0.12, 0.12, p => { el.style.filter = p > 0 && p < 1 ? `brightness(${(1 - 0.45 * p).toFixed(3)})` : ''; });
         }
         // clip-path and glitch transitions are driven per frame (both ends of the scene share one style property)
         const o = sc.last ? null : sc.tr;
@@ -716,7 +806,7 @@
           else if (el._g) { el.style.transform = ''; el.style.filter = ''; el._g = 0; }
         });
       }
-      sc.start = start; start += sc.dur;
+      sc.start = start; spec.scenes[i]._start = start + sc.lead; start += sc.dur;
       return { i: i + 1, type: sc.type, anim: spec.scenes[i]._anim, tr: desk ? 'cam' : spec.scenes[i]._tr, start: +sc.start.toFixed(3), lead: sc.lead, clipAt: spec.scenes[i]._clipAt, voAt: sc.vo ? +(sc.start + sc.lead + sc.vo.at).toFixed(3) : null, dur: sc.dur, need: +(sc.end + sc.lead + 0.8).toFixed(1), fit: k, overflow: sc.overflow, fixed: sc.fixed, imgErr: !!sc.el.querySelector('img[data-err]') };
     });
 
@@ -751,6 +841,7 @@
     const ph = S.beat ? (((t - S.beat.o) / S.beat.p) % 1 + 1) % 1 : 0, pulse = S.beat ? Math.exp(-ph * 5.5) : 0;
     if (S.desk) {
       let ai = scenes.findIndex(sc => t < sc.start + sc.dur); if (ai < 0) ai = scenes.length - 1;
+      S._ai = ai;
       scenes.forEach(sc => sc.tl.seek(t - sc.start - sc.lead));
       const sc = scenes[ai], a = ai ? scenes[ai - 1] : sc, lt = t - sc.start, q = ai ? Math.min(1, lt / (sc.move || 0.75)) : 1, p = ease.inout(q);
       const x = lerp(a.cam.x, sc.cam.x, p), y = lerp(a.cam.y, sc.cam.y, p);
@@ -807,7 +898,9 @@
   function accents(t) {
     const { beat, scenes, acc, hit, W, H } = S, p = beat.p, x = (t - beat.o) / p, k = Math.floor(x), ph = x - k, bar = Math.floor(k / 4), pos = ((k % 4) + 4) % 4;
     const w = pos === 0 ? 1 : pos === 2 ? 0.55 : 0.28, env = t < beat.o ? 0 : Math.exp(-ph * 6) * w;
-    const main = acc[(bar + S.accSeed) % acc.length], A = pos % 2 === 0 ? main : acc[(bar + S.accSeed + 1) % acc.length];
+    // titles stay still once landed: moving accents (lift/punch/tilt/shake/jitter) only on beats 1 and 3; beats 2/4 get light-only accents (glow/sweep/burst/rgb/flash) or rest
+    const MOVE = ['lift', 'punch', 'tilt', 'shake', 'jitter'], soft = acc.filter(a => !MOVE.includes(a));
+    const main = acc[(bar + S.accSeed) % acc.length], A = pos % 2 === 0 ? main : soft.length ? soft[(bar + S.accSeed) % soft.length] : null;
     let ai = scenes.findIndex(sc => t >= sc.start && t < sc.start + sc.dur); if (ai < 0) ai = scenes.length - 1;
     const sc = scenes[ai], tg = sc.inner, lt = t - sc.start;
     if (S._tg && S._tg !== tg) { S._tg.style.transform = ''; S._tg.style.removeProperty('--glow'); }

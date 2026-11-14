@@ -135,7 +135,7 @@ export function prepVoices(ff, spec, dir) {
 }
 
 /** Build the final soundtrack: music ducked under voice, voice lines and footage sound placed at their scene times. */
-export function mixAudio(ff, { music, info, scenes, volume = 0.8, out }) {
+export function mixAudio(ff, { music, info, scenes, volume = 0.8, out, lufs = -14 }) {
   const ins = [], f = [], total = info.total.toFixed(3);
   let n = 0;
   const voIdx = [], clipIdx = [];
@@ -156,8 +156,56 @@ export function mixAudio(ff, { music, info, scenes, volume = 0.8, out }) {
     else parts.push('[mu]');
   } else if (vl.length) parts.push('[vo]');
   parts.push(...cl);
-  f.push(`${parts.join('')}amix=inputs=${parts.length}:normalize=0:duration=first,atrim=0:${total},afade=t=out:st=${Math.max(0, info.total - 1.4).toFixed(2)}:d=1.4,alimiter=limit=0.95[out]`);
-  const r = run(ff, ['-v', 'error', '-y', ...ins, '-filter_complex', f.join(';'), '-map', '[out]', '-t', total, '-ar', '44100', out]);
+  f.push(`${parts.join('')}amix=inputs=${parts.length}:normalize=0:duration=first,atrim=0:${total},afade=t=out:st=${Math.max(0, info.total - 1.4).toFixed(2)}:d=1.4,loudnorm=I=${lufs}:TP=-1.5:LRA=11,aresample=48000,alimiter=limit=0.89[out]`);
+  const r = run(ff, ['-v', 'error', '-y', ...ins, '-filter_complex', f.join(';'), '-map', '[out]', '-t', total, '-ar', '48000', out]);
   if (r.status !== 0) throw new Error('audio mix failed: ' + r.stderr.toString().split('\n').slice(0, 3).join(' '));
   return out;
 }
+
+/** Write an .srt caption file from the voice cues (absolute times). */
+export function writeSrt(info, scenes, out) {
+  const ts = t => { const ms = Math.max(0, Math.round(t * 1000)), h = Math.floor(ms / 3600000), m = Math.floor(ms / 60000) % 60, sec = Math.floor(ms / 1000) % 60; return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')},${String(ms % 1000).padStart(3, '0')}`; };
+  const rows = [];
+  info.scenes.forEach((si, k) => { const v = scenes[k]._vo; if (!v || si.voAt == null) return; for (const c of v.cues) rows.push([si.voAt + c.a, si.voAt + c.b + 0.15, c.text]); });
+  if (!rows.length) return null;
+  rows.sort((x, y) => x[0] - y[0]); rows.forEach((r, i) => { if (rows[i + 1] && r[1] > rows[i + 1][0] - 0.02) r[1] = rows[i + 1][0] - 0.02; });
+  fs.writeFileSync(out, rows.map(([a, b, t], i) => `${i + 1}\n${ts(a)} --> ${ts(b)}\n${t}\n`).join('\n'));
+  return rows.length;
+}
+
+/** Extra deliverables from the finished MP4: a looping GIF, a WebM, a cover thumbnail. */
+export function extras(ff, mp4, { gif, webm, thumb, thumbAt = 1.5 }) {
+  const done = [], base = mp4.replace(/\.mp4$/i, '');
+  if (thumb) { const o = base + '.thumb.jpg'; if (run(ff, ['-v', 'error', '-y', '-ss', String(thumbAt), '-i', mp4, '-frames:v', '1', '-q:v', '2', o]).status === 0) done.push(o); }
+  if (gif) { const o = base + '.gif'; if (run(ff, ['-v', 'error', '-y', '-i', mp4, '-vf', 'fps=15,scale=480:-2:flags=lanczos,split[a][b];[a]palettegen=max_colors=128:stats_mode=diff[p];[b][p]paletteuse=dither=bayer:bayer_scale=4', '-loop', '0', o]).status === 0) done.push(o); }
+  if (webm) { const o = base + '.webm'; if (run(ff, ['-v', 'error', '-y', '-i', mp4, '-c:v', 'libvpx-vp9', '-b:v', '0', '-crf', '34', '-row-mt', '1', '-deadline', 'good', '-cpu-used', '4', '-c:a', 'libopus', '-b:a', '128k', o]).status === 0) done.push(o); }
+  return done;
+}
+
+// ---------- Manim (optional): render a user/agent-written Scene to MP4, then treat it like footage ----------
+export function manimCmd() {
+  if (process.env.MOGRAPH_MANIM) return [process.env.MOGRAPH_MANIM];
+  if (has('manim', ['--version'])) return ['manim'];
+  if (has(PY, ['-c', 'import manim'])) return [PY, '-m', 'manim'];
+  return null;
+}
+export function prepManim(ff, s, { w, h, fps, colors }) {
+  const cmd = manimCmd();
+  if (!cmd) throw new Error('manim scene: Manim is not installed. Install it in a virtualenv (`pip install manim`, needs pango; see docs.manim.community) and set MOGRAPH_MANIM=/path/to/venv/bin/manim — or use a bars/stat/flow scene instead');
+  const src = fs.readFileSync(s.manim, 'utf8'), cls = s.scene || (src.match(/class\s+(\w+)\s*\(\s*\w*Scene\s*\)/) || [])[1];
+  if (!cls) throw new Error(`manim scene: no Scene class found in ${s.manim} (set scene: ClassName)`);
+  const dir = path.join(CACHE, 'manim', hash(src, cls, w, h, fps, JSON.stringify(colors)));
+  const out = path.join(dir, 'out.mp4');
+  if (!fs.existsSync(out)) {
+    fs.mkdirSync(dir, { recursive: true });
+    const cfg = path.join(dir, 'manim.cfg');
+    fs.writeFileSync(cfg, `[CLI]\nbackground_color = ${colors.bg}\n`);
+    const r = run(cmd[0], [...cmd.slice(1), 'render', '--config_file', cfg, '--disable_caching', '--fps', String(fps), '-r', `${w},${h}`, '--media_dir', path.join(dir, 'media'), '-o', 'scene', s.manim, cls],
+      { cwd: path.dirname(s.manim), env: { ...process.env, MOGRAPH_BG: colors.bg, MOGRAPH_FG: colors.fg, MOGRAPH_AC: colors.ac, MOGRAPH_AC2: colors.ac2 }, timeout: 600000 });
+    const made = r.status === 0 ? findFile(path.join(dir, 'media'), 'scene.mp4') : null;
+    if (!made) throw new Error('manim render failed: ' + (r.stderr || '').toString().trim().split('\n').slice(-3).join(' | ').slice(0, 300));
+    fs.renameSync(made, out);
+  }
+  s.clip = out;
+}
+function findFile(dir, name) { if (!fs.existsSync(dir)) return null; for (const e of fs.readdirSync(dir, { withFileTypes: true })) { const p = path.join(dir, e.name); if (e.isDirectory()) { const f = findFile(p, name); if (f) return f; } else if (e.name === name) return p; } return null; }

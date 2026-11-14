@@ -1,0 +1,15 @@
+# 3D scenes (three.js): card, particles, object. Renders about 3x slower than other scenes on machines without a GPU.
+meta: {size: "9:16", look: bold, theme: lanhmar, music: upbeat}
+scenes:
+  - 3d: particles
+    kicker: mograph
+    title: Giờ có cả *3D*
+  - 3d: card
+    image: lanhmar/assets/app-t-outbox.jpg
+    kicker: Plugin Claude Code
+    title: T-outbox
+    caption: Ảnh sản phẩm thành thẻ 3D
+  - 3d: object
+    shape: knot
+    title: Khối 3D *theo màu brand*
+  - cta: Ghé *Kho báu*

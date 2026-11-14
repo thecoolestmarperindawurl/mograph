@@ -160,6 +160,9 @@
         return at + dur;
       },
       pending(img) { PEND.push(img.decode().catch(() => {})); },
+      // with music (slides style), item entrances land on the half-beat grid instead of a fixed stagger
+      bq(t) { const b = meta._beat; if (!b || meta.style === 'desk') return t; const h = b.p / 2; return Math.ceil(t / h - 1e-6) * h; },
+      bs(d) { const b = meta._beat; if (!b || meta.style === 'desk') return d; const h = b.p / 2; return d > h * 1.3 ? b.p : h; },
       logo(s, parent) { if (!s.logo) return 0; const im = c.h('img', 'logo', null, parent); im.src = s.logo; c.up(im, 0, 0.5, 0.4); return 0.15; },
       head(s, t = 0) {
         t = t || 0;
@@ -190,9 +193,9 @@
       s.bullets.forEach((it, i) => {
         const [a, b] = pair(it);
         const row = c.h('div', 'bi', `<span class="n">${i + 1}</span><div><b>${rich(a)}</b>${b ? `<small>${rich(b)}</small>` : ''}</div>`, bl);
-        c.tl.add(row, { opacity: [0, 1], x: [-1.2, 0] }, t + i * 0.32, 0.55, 'out5');
+        c.tl.add(row, { opacity: [0, 1], x: [-1.2, 0] }, c.bq(t) + i * c.bs(0.32), 0.55, 'out5');
       });
-      return t + (s.bullets.length - 1) * 0.32 + 0.55;
+      return c.bq(t) + (s.bullets.length - 1) * c.bs(0.32) + 0.55;
     },
     flow(s, c) {
       let t = c.head(s);
@@ -263,7 +266,7 @@
       (s.rows || []).forEach((r, i) => {
         const a = c.h('div', 'cell', `<span class="ic">${ICON.x}</span><span>${rich(r[0])}</span>`, L);
         const b = c.h('div', 'cell', `<span class="ic">${ICON.check}</span><span>${rich(r[1])}</span>`, R);
-        c.up(a, t + i * 0.42, 0.45, 0.4); c.up(b, t + i * 0.42 + 0.16, 0.45, 0.4);
+        c.up(a, c.bq(t) + i * c.bs(0.42), 0.45, 0.4); c.up(b, c.bq(t) + i * c.bs(0.42) + c.bs(0.16) / 2, 0.45, 0.4);
       });
       return t + Math.max(0, (s.rows || []).length - 1) * 0.42 + 0.65;
     },
@@ -315,7 +318,7 @@
       const box = c.h('div', 'bars');
       ent.forEach(([k, v], i) => {
         const row = c.h('div', 'bar' + (k === hi ? ' hi' : ''), `<label>${rich(k)}</label><span class="val"></span><div class="trk"><i></i></div>`, box);
-        const at = t + i * 0.22, fill = row.querySelector('i'), val = row.querySelector('.val');
+        const at = c.bq(t) + i * c.bs(0.22), fill = row.querySelector('i'), val = row.querySelector('.val');
         c.up(row, at, 0.4, 0.3);
         c.tl.fn(at + 0.15, 0.9, p => { fill.style.width = ((parseFloat(v) || 0) / max) * 100 * p + '%'; }, 'out5');
         c.count(val, String(v) + (s.unit || ''), at + 0.15, 0.9);
@@ -488,7 +491,7 @@
     grid(s, c) {
       let t = c.head(s);
       const g = c.h('div', 'mosaic n' + s.grid.length);
-      s.grid.forEach((src, i) => { const cell = c.h('div', 'mc', `<img src="${esc(src)}">`, g); c.tl.add(cell, { opacity: [0, 1], scale: [0.8, 1], rotate: [i % 2 ? 4 : -4, 0] }, t + i * 0.12, 0.6, 'back'); c.tl.add(cell.firstChild, { scale: [1.15, 1] }, t + i * 0.12, 4, 'out'); });
+      s.grid.forEach((src, i) => { const cell = c.h('div', 'mc', `<img src="${esc(src)}">`, g); c.tl.add(cell, { opacity: [0, 1], scale: [0.8, 1], rotate: [i % 2 ? 4 : -4, 0] }, c.bq(t) + i * c.bs(0.12), 0.6, 'back'); c.tl.add(cell.firstChild, { scale: [1.15, 1] }, c.bq(t) + i * c.bs(0.12), 4, 'out'); });
       t += s.grid.length * 0.12 + 0.5;
       if (s.caption) t = c.up(c.h('p', 'sub', rich(s.caption)), t - 0.2);
       return t;
@@ -523,7 +526,7 @@
       let t = c.head(s);
       const box = c.h('div', 'tline ' + (c.portrait ? 'v' : 'h')), bar = c.h('i', 'tbar', null, box), n = s.timeline.length;
       c.tl.add(bar, c.portrait ? { sy: [0, 1] } : { sx: [0, 1] }, t, n * 0.35 + 0.2, 'inout');
-      s.timeline.forEach((it, i) => { const [a, b] = pair(it); c.pop(c.h('div', 'tit', `<span class="tdot"></span><b>${rich(a)}</b>${b ? `<small>${rich(b)}</small>` : ''}`, box), t + 0.15 + i * 0.35, 0.5); });
+      s.timeline.forEach((it, i) => { const [a, b] = pair(it); c.pop(c.h('div', 'tit', `<span class="tdot"></span><b>${rich(a)}</b>${b ? `<small>${rich(b)}</small>` : ''}`, box), c.bq(t + 0.15) + i * c.bs(0.35), 0.5); });
       return t + n * 0.35 + 0.6;
     },
     recap() { return { end: 1.5, read: 0.1, dur: 1.7 }; },
@@ -576,6 +579,9 @@
       s._tr = s.tr || m.transition || (LK ? pick(T, pt) : 'fade'); pt = s._tr;
       s._v = Math.floor(R() * 4);
     });
+    // beat accents: a different hit per bar (strong on beat 1, medium on 3, light on 2/4) instead of one bounce
+    const ACC = { clean: ['lift', 'glow', 'sweep'], bold: ['punch', 'tilt', 'burst', 'shake'], kinetic: ['punch', 'tilt', 'sweep'], glitch: ['jitter', 'rgb', 'flash'], cinematic: ['glow', 'sweep', 'lift'], editorial: ['sweep', 'lift', 'tilt'], playful: ['burst', 'tilt', 'punch'] };
+    const acc = m.pulse === false || m.accents === 'off' ? [] : [].concat(m.accents || (LK ? ACC[m.look] : ['lift', 'glow', 'sweep']));
     const pace = m.pace ?? (LK && LK.pace) ?? 1, fx = new Set([].concat(m.fx ?? (LK ? LK.fx : [])).filter(Boolean));
     const bgk = m.bg || (LK && LK.bg) || 'glow', bg = document.createElement('div');
     bg.className = 'mg-bg';
@@ -588,7 +594,7 @@
     if (fx.has('shapes')) {
       const sh = document.createElement('div'); sh.className = 'mg-shapes'; bg.appendChild(sh);
       const kinds = ['<i class="sc"></i>', '<i class="sr"></i>', '<svg viewBox="0 0 10 10"><path d="M5 1L9 9H1z"/></svg>', '<svg viewBox="0 0 10 10"><path d="M5 1v8M1 5h8"/></svg>', '<svg viewBox="0 0 20 8"><path d="M1 4q2.5-4 5 0t5 0 5 0 3 0"/></svg>'];
-      shapes = Array.from({ length: 11 }, (_, k) => { const e = document.createElement('div'); e.className = 'shp c' + (k % 3); e.innerHTML = kinds[k % kinds.length]; const z = 0.6 + R() * 1.4; e.style.width = z + 'em'; e.style.height = z + 'em'; sh.appendChild(e); return { e, x: k % 2 ? 0.84 + R() * 0.13 : 0.02 + R() * 0.13, y: R(), r: R() * 360, v: 0.3 + R(), ph: R() * 6.28 }; });
+      shapes = Array.from({ length: 7 }, (_, k) => { const e = document.createElement('div'); e.className = 'shp c' + (k % 3); e.innerHTML = kinds[k % kinds.length]; const z = 0.45 + R() * 0.8; e.style.width = z + 'em'; e.style.height = z + 'em'; sh.appendChild(e); return { e, x: k % 2 ? 0.84 + R() * 0.13 : 0.02 + R() * 0.13, y: R(), r: R() * 360, v: 0.3 + R(), ph: R() * 6.28 }; });
     }
     let layer = null;
     if (!desk) { layer = document.createElement('div'); layer.className = 'mg-layer'; stage.appendChild(layer); }
@@ -645,6 +651,14 @@
       if (fx.has('grain')) for (let k = 0; k < 4; k++) { const cv = document.createElement('canvas'); cv.width = cv.height = 192; const g = cv.getContext('2d'), d = g.createImageData(192, 192), rr = mulberry(hstr('grain' + k)); for (let j = 0; j < d.data.length; j += 4) { const v = rr() * 255; d.data[j] = d.data[j + 1] = d.data[j + 2] = v; d.data[j + 3] = 255; } g.putImageData(d, 0, 0); grainT.push(`url(${cv.toDataURL()})`); }
     }
     for (const f of fx) stage.classList.add('fx-' + f);
+    stage.style.setProperty('--bgk', { low: 0.55, mid: 1, high: 1.4 }[m.intensity || 'low'] ?? 0.55);
+    let hit = null;
+    if (m._beat && acc.length) {
+      hit = document.createElement('div'); hit.className = 'mg-hit';
+      hit.innerHTML = '<div class="sweep"></div><div class="flash"></div><div class="burst">' + '<i></i>'.repeat(10) + '</div>';
+      stage.appendChild(hit);
+      if (acc.includes('rgb')) stage.classList.add('fx-rgb');
+    }
     let cap = null;
     if (m.captions !== false && scenes.some(x => x.vo && x.vo.cues && x.vo.cues.length)) { cap = document.createElement('div'); cap.className = 'mg-cap'; stage.appendChild(cap); }
     const ov = {};
@@ -724,7 +738,7 @@
         wins.forEach((x, k) => { x.gone = true; sc.tl.add(x.slot, { x: [0, (mid - x.cam.x) / U], y: [0, (my - x.cam.y) / U], scale: [1, 0.5], opacity: [1, 0] }, 0.75 + k * 0.06, 0.5, 'in'); });
       });
     }
-    S = { scenes, total: start, blobs, prog, W, H, desk, world, blur, mascot, marq, cap, ov, fx, fxl, grainT, shapes, bgAnim, layer, stage, mw: marq ? marq.querySelector('span').getBoundingClientRect().width : 0, beat: bt && m.pulse !== false ? bt : null, bg };
+    S = { acc, hit, accSeed: Math.floor(R() * 7), scenes, total: start, blobs, prog, W, H, desk, world, blur, mascot, marq, cap, ov, fx, fxl, grainT, shapes, bgAnim, layer, stage, mw: marq ? marq.querySelector('span').getBoundingClientRect().width : 0, beat: bt && m.pulse !== false ? bt : null, bg };
     await seek(0);
     return { total: +start.toFixed(2), w: W, h: H, fps: m.fps, scenes: info, beat: bt, load: +(1 + ({ grid: 0.1, dots: 0.1, stripes: 0.6, halftone: 0.3, aurora: 0.3, mesh: 0.1 }[bgk] || 0) + [...fx].reduce((a, f) => a + ({ grain: 0.55, leak: 0.25, scan: 0.3, vignette: 0.1, rgb: 0.1, shapes: 0.2, shake: 0.1 }[f] || 0), 0)).toFixed(2) };
   }
@@ -740,7 +754,7 @@
       scenes.forEach(sc => sc.tl.seek(t - sc.start - sc.lead));
       const sc = scenes[ai], a = ai ? scenes[ai - 1] : sc, lt = t - sc.start, q = ai ? Math.min(1, lt / (sc.move || 0.75)) : 1, p = ease.inout(q);
       const x = lerp(a.cam.x, sc.cam.x, p), y = lerp(a.cam.y, sc.cam.y, p);
-      const z = lerp(ai ? holdZ(a, a.dur) : sc.cam.z, holdZ(sc, lt), p) * (1 - 0.1 * Math.sin(Math.PI * p)) * (1 + 0.014 * pulse);
+      const z = lerp(ai ? holdZ(a, a.dur) : sc.cam.z, holdZ(sc, lt), p) * (1 - 0.1 * Math.sin(Math.PI * p));
       S.world.style.transform = `translate(${W / 2 - x * z}px,${H / 2 - y * z}px) scale(${z})`;
       const bw = Math.sin(Math.PI * q) * 0.55 * U, bx = bw * Math.abs(sc.cam.x - a.cam.x) / W, by = bw * Math.abs(sc.cam.y - a.cam.y) / H;
       S.blur.fe.setAttribute('stdDeviation', `${bx.toFixed(1)} ${by.toFixed(1)}`);
@@ -757,10 +771,10 @@
     if (blobs[0]) blobs[0].style.transform = `translate(${(-0.45 + 0.12 * Math.sin(t * 0.35)) * W}px,${(-0.25 + 0.08 * Math.cos(t * 0.3)) * H}px)`;
     if (blobs[2]) blobs[2].style.transform = `translate(${(0.1 + 0.3 * Math.sin(t * 0.22)) * W}px,${(0.15 + 0.25 * Math.cos(t * 0.19)) * H}px)`;
     if (blobs[1]) blobs[1].style.transform = `translate(${(0.35 + 0.12 * Math.cos(t * 0.28)) * W}px,${(0.55 + 0.07 * Math.sin(t * 0.33)) * H}px)`;
-    if (S.beat && !S.desk) S.bg.style.transform = `scale(${1 + 0.035 * pulse})`;
     if (S.marq) S.marq.firstChild.style.transform = `translateX(${-((t * 2.4 * U) % S.mw)}px)`;
     if (prog) prog.firstChild.style.width = Math.min(100, (t / total) * 100) + '%';
     if (S.cap) captions(t);
+    if (S.hit) accents(t);
     // overlay transitions centred on the cut
     const cutNear = k => { for (let i = 0; i < scenes.length - 1; i++) { const sc = scenes[i], T = sc.start + sc.dur; if (sc.tr === k && Math.abs(t - T) < 0.36) return t - T; } return null; };
     for (const k in S.ov) {
@@ -776,16 +790,50 @@
     if (fx.size || S.bgAnim) {
       let kk = pulse;
       if (!S.beat) { let dmin = 9; for (const sc of scenes) dmin = Math.min(dmin, Math.abs(t - sc.start)); kk = Math.exp(-dmin * 9); }
-      if (fx.has('shake')) { const tg = S.desk ? S.blur.view : S.layer, f = Math.floor(t * 30), a = U * (0.05 + 0.22 * kk); tg.style.transform = `translate(${((noise('sx', f) - 0.5) * a).toFixed(1)}px,${((noise('sy', f) - 0.5) * a).toFixed(1)}px) rotate(${((noise('sr', f) - 0.5) * 0.5 * kk).toFixed(2)}deg)`; }
-      if (fx.has('rgb')) S.stage.style.setProperty('--rgb', (kk * 0.07 * U).toFixed(1) + 'px');
+      const kick = S.hit ? 0 : kk; // with beat accents on, overlays keep a steady feel instead of hitting every beat
+      if (fx.has('shake')) { const tg = S.desk ? S.blur.view : S.layer, f = Math.floor(t * 30), a = U * (0.05 + 0.22 * kick); tg.style.transform = `translate(${((noise('sx', f) - 0.5) * a).toFixed(1)}px,${((noise('sy', f) - 0.5) * a).toFixed(1)}px) rotate(${((noise('sr', f) - 0.5) * 0.5 * kick).toFixed(2)}deg)`; }
+      if (fx.has('rgb') && !S.hit) S.stage.style.setProperty('--rgb', (kk * 0.07 * U).toFixed(1) + 'px');
       if (S.grainT.length) { const g = S.fxl.querySelector('.grain'), f = Math.floor(t * 12); g.style.backgroundImage = S.grainT[f % 4]; g.style.backgroundPosition = `${Math.floor(noise('gx', f) * 192)}px ${Math.floor(noise('gy', f) * 192)}px`; }
       if (fx.has('leak')) { const [a, b] = S.fxl.querySelectorAll('.leak i'); a.style.transform = `translate(${(-0.3 + 0.25 * Math.sin(t * 0.4)) * W}px,${(-0.2 + 0.1 * Math.cos(t * 0.33)) * H}px)`; b.style.transform = `translate(${(0.45 + 0.2 * Math.cos(t * 0.31)) * W}px,${(0.5 + 0.12 * Math.sin(t * 0.27)) * H}px)`; a.style.opacity = (0.35 + 0.25 * Math.sin(t * 0.9)).toFixed(3); }
       if (fx.has('scan')) S.fxl.querySelector('.scan').style.backgroundPosition = `0 ${((t * 40) % 400).toFixed(1)}px`;
-      for (const o of S.shapes) o.e.style.transform = `translate(${((o.x + 0.04 * Math.sin(t * o.v + o.ph)) * W).toFixed(1)}px,${((((o.y - t * 0.012 * o.v) % 1) + 1) % 1 * H).toFixed(1)}px) rotate(${(o.r + t * 25 * o.v).toFixed(1)}deg) scale(${(1 + 0.25 * kk).toFixed(3)})`;
+      for (const o of S.shapes) o.e.style.transform = `translate(${((o.x + 0.04 * Math.sin(t * o.v + o.ph)) * W).toFixed(1)}px,${((((o.y - t * 0.012 * o.v) % 1) + 1) % 1 * H).toFixed(1)}px) rotate(${(o.r + t * 10 * o.v).toFixed(1)}deg)`;
       if (S.bgAnim) { const c = S.bgAnim.className; if (c === 'stripes') S.bgAnim.style.transform = `translateX(${((t * 0.8 * U) % (2.687 * U)).toFixed(1)}px)`; else if (c === 'halftone') S.bgAnim.style.transform = `translate(${(Math.sin(t * 0.3) * U).toFixed(1)}px,${(-t * 0.25 * U % (1.2 * U)).toFixed(1)}px)`; else { const [a, b] = S.bgAnim.children; a.style.transform = `translateX(${(Math.sin(t * 0.25) * 0.15 * W).toFixed(1)}px) skewY(${(-8 + 4 * Math.sin(t * 0.3)).toFixed(2)}deg)`; b.style.transform = `translateX(${(Math.cos(t * 0.21) * 0.18 * W).toFixed(1)}px) skewY(${(6 + 4 * Math.cos(t * 0.27)).toFixed(2)}deg)`; } }
     }
     const pend = PEND; PEND = [];
     return pend.length ? Promise.all(pend) : undefined;
+  }
+
+  // beat accents on the active scene's content
+  function accents(t) {
+    const { beat, scenes, acc, hit, W, H } = S, p = beat.p, x = (t - beat.o) / p, k = Math.floor(x), ph = x - k, bar = Math.floor(k / 4), pos = ((k % 4) + 4) % 4;
+    const w = pos === 0 ? 1 : pos === 2 ? 0.55 : 0.28, env = t < beat.o ? 0 : Math.exp(-ph * 6) * w;
+    const main = acc[(bar + S.accSeed) % acc.length], A = pos % 2 === 0 ? main : acc[(bar + S.accSeed + 1) % acc.length];
+    let ai = scenes.findIndex(sc => t >= sc.start && t < sc.start + sc.dur); if (ai < 0) ai = scenes.length - 1;
+    const sc = scenes[ai], tg = sc.inner, lt = t - sc.start;
+    if (S._tg && S._tg !== tg) { S._tg.style.transform = ''; S._tg.style.removeProperty('--glow'); }
+    S._tg = tg;
+    // stay quiet while a scene is entering or leaving, so transitions read cleanly
+    const quiet = lt < 0.45 + (sc.lead || 0) || (!sc.last && sc.dur - lt < 0.4), e = quiet ? 0 : env, U2 = U, f = Math.floor(t * 30);
+    let tr = '';
+    if (A === 'lift') tr = `translateY(${(-0.18 * U2 * e).toFixed(2)}px) scale(${(1 + 0.012 * e).toFixed(4)})`;
+    else if (A === 'punch') tr = `scale(${(1 + 0.055 * e).toFixed(4)})`;
+    else if (A === 'tilt') tr = `rotate(${((k % 2 ? 1 : -1) * 1.5 * e).toFixed(3)}deg) scale(${(1 + 0.015 * e).toFixed(4)})`;
+    else if (A === 'shake') tr = `translate(${((noise('ax', f) - 0.5) * 0.35 * U2 * e).toFixed(2)}px,${((noise('ay', f) - 0.5) * 0.35 * U2 * e).toFixed(2)}px)`;
+    else if (A === 'jitter') tr = e > 0.08 ? `translateX(${((noise('aj', f) - 0.5) * 0.5 * U2 * e).toFixed(2)}px) skewX(${((noise('ak', f) - 0.5) * 6 * e).toFixed(2)}deg)` : '';
+    tg.style.transform = tr;
+    tg.style.setProperty('--glow', (A === 'glow' ? e : 0).toFixed(3));
+    if (acc.includes('rgb')) S.stage.style.setProperty('--rgb', ((A === 'rgb' ? e : 0) * 0.09 * U2).toFixed(1) + 'px');
+    const [sw, fl, bu] = hit.children;
+    const swOn = A === 'sweep' && pos === 0 && !quiet && ph < 0.6;
+    sw.style.display = swOn ? 'block' : 'none';
+    if (swOn) sw.style.transform = `translateX(${(-60 + ph / 0.6 * 160).toFixed(1)}%) skewX(-18deg)`;
+    fl.style.opacity = (A === 'flash' && pos === 0 ? e * 0.16 : 0).toFixed(3);
+    const buOn = A === 'burst' && (pos === 0 || pos === 2) && !quiet && ph < 0.7;
+    bu.style.display = buOn ? 'block' : 'none';
+    if (buOn) {
+      const cx = (noise('bx', k) < 0.5 ? 0.12 + noise('bx2', k) * 0.18 : 0.7 + noise('bx2', k) * 0.18) * W, cy = (0.2 + noise('by', k) * 0.6) * H;
+      [...bu.children].forEach((d, j) => { const a = (j / 10) * 6.283 + noise('ba', k), r = (0.6 + noise('br' + j, k)) * 2.6 * U2 * ease.out(ph / 0.7); d.style.transform = `translate(${(cx + Math.cos(a) * r).toFixed(1)}px,${(cy + Math.sin(a) * r).toFixed(1)}px) scale(${(1 - ph / 0.7).toFixed(3)})`; d.style.opacity = (w * (1 - ph / 0.7)).toFixed(3); });
+    }
   }
 
   // captions: phrase cues from the voiceover, current word highlighted (word times are spread by length inside each cue)

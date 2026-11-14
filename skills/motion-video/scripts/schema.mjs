@@ -5,6 +5,7 @@ import { STYLES } from './audio.mjs';
 export const ANIMS = { rise: 'words rise out of a blur (default)', pop: 'words pop with overshoot', stamp: 'words slam down from big', blur: 'line focuses in', mask: 'each word slides up out of a hidden line', chars: 'letters stagger in', wave: 'letters bounce in', split: 'letters fly in from both sides', type: 'typewriter', scramble: 'letters decode from random glyphs', glitch: 'RGB-split jitter then settle', highlight: 'rise + marker sweep behind *accent*' };
 export const TRANS = { fade: 'fade up (default)', slide: 'push sideways', zoom: 'zoom through', blur: 'defocus', whip: 'fast whip-pan with motion blur', punch: 'zoom punch-in', circle: 'iris close / open', diagonal: 'slanted wipe', wipe: 'colour panel sweeps across', split: 'two panels close then open', flash: 'white flash on the cut', glitch: 'RGB slices', cut: 'hard cut' };
 export const FX = { grain: 'film grain', leak: 'warm light leak', vignette: 'dark edges', scan: 'scanlines', shake: 'handheld shake, kicks on the beat', rgb: 'colour split on headlines, kicks on the beat', shapes: 'floating geometric shapes' };
+export const ACCENTS = ['lift', 'punch', 'tilt', 'shake', 'jitter', 'glow', 'sweep', 'burst', 'rgb', 'flash'];
 export const BGS = ['glow', 'grid', 'dots', 'plain', 'stripes', 'halftone', 'aurora', 'mesh'];
 export const LOOKS = { clean: 'rise/mask/blur · fade/slide/zoom · glow — calm, corporate (default feel)', bold: 'pop/stamp/chars · punch/whip/flash · stripes + shapes + shake — short-form social energy', kinetic: 'mask/chars/stamp · whip/split/punch · plain + grain — typography-led', glitch: 'scramble/glitch/type · glitch/cut/whip · grid + scanlines + RGB — tech, AI, gaming (use sparingly)', cinematic: 'blur/mask/rise · fade/circle/zoom · aurora + vignette + grain + light leak, slower — brand stories', editorial: 'mask/highlight/type · diagonal/split/slide · halftone + grain — magazine, explainers', playful: 'wave/pop/split · circle/flash/punch · mesh + shapes — kids, lifestyle, fun' };
 export const SCENES = {
@@ -48,7 +49,9 @@ export const META = {
   bpm: 'override tempo (music: change speed; audio: fix a wrong detection)',
   sync: 'cuts land on the beat grid: half (default, every 2 beats) | beat | bar | off',
   volume: 'music volume 0–1, default 0.8',
-  pulse: 'false = no subtle zoom pulse on each beat',
+  pulse: 'false = no beat accents at all',
+  accents: 'beat hits, overrides the look: list of lift | punch | tilt | shake | jitter | glow | sweep | burst | rgb | flash, or off. One changes per bar; strong on beat 1, light on 2/4',
+  intensity: 'background + pattern strength: low (default, calm behind content) | mid | high',
   max: 'target max seconds; lint warns when exceeded',
   style: 'slides (default: one scene per cut) | desk (scenes are window cards on one canvas; camera whip-pans between them)',
   mascot: 'desk only: image path of a character that perches on the active card and hops along',
@@ -84,6 +87,8 @@ export function normalize(raw) {
   if (meta.look && !LOOKS[meta.look]) errors.push(`meta.look "${meta.look}" unknown (${Object.keys(LOOKS).join('|')})`);
   if (meta.anim && !ANIMS[meta.anim]) errors.push(`meta.anim "${meta.anim}" unknown (${Object.keys(ANIMS).join('|')})`);
   if (meta.bg && !BGS.includes(meta.bg)) errors.push(`meta.bg "${meta.bg}" unknown (${BGS.join('|')})`);
+  if (meta.accents && meta.accents !== 'off') for (const a of [].concat(meta.accents)) if (!ACCENTS.includes(a)) errors.push(`meta.accents "${a}" unknown (${ACCENTS.join('|')}, or off)`);
+  if (meta.intensity && !['low', 'mid', 'high'].includes(meta.intensity)) errors.push('meta.intensity must be low|mid|high');
   for (const f of [].concat(meta.fx || [])) if (!FX[f]) errors.push(`meta.fx "${f}" unknown (${Object.keys(FX).join('|')})`);
   if (meta.layout && !['row', 'column', 'grid', 'zigzag'].includes(meta.layout)) errors.push('meta.layout must be row|column|grid|zigzag');
   if (meta.music && meta.audio) errors.push('meta: use music OR audio, not both');
@@ -118,7 +123,7 @@ export function normalize(raw) {
 
 export function catalog(type) {
   if (type === 'looks' || type === 'look') return 'LOOKS (meta.look; meta.seed reshuffles; `mograph remix <spec>` previews several in one image)\n' + Object.entries(LOOKS).map(([k, v]) => `  ${k.padEnd(9)} ${v}`).join('\n');
-  if (type === 'fx' || type === 'effects') return 'TEXT ANIMATIONS (anim)\n' + Object.entries(ANIMS).map(([k, v]) => `  ${k.padEnd(9)} ${v}`).join('\n') + '\nTRANSITIONS (tr / meta.transition, slides style)\n' + Object.entries(TRANS).map(([k, v]) => `  ${k.padEnd(9)} ${v}`).join('\n') + '\nOVERLAYS (meta.fx)\n' + Object.entries(FX).map(([k, v]) => `  ${k.padEnd(9)} ${v}`).join('\n') + '\nBACKGROUNDS (meta.bg): ' + BGS.join(', ') + '\nANY SCENE: lower: "Name|Role" adds a lower-third.';
+  if (type === 'fx' || type === 'effects') return 'TEXT ANIMATIONS (anim)\n' + Object.entries(ANIMS).map(([k, v]) => `  ${k.padEnd(9)} ${v}`).join('\n') + '\nTRANSITIONS (tr / meta.transition, slides style)\n' + Object.entries(TRANS).map(([k, v]) => `  ${k.padEnd(9)} ${v}`).join('\n') + '\nOVERLAYS (meta.fx)\n' + Object.entries(FX).map(([k, v]) => `  ${k.padEnd(9)} ${v}`).join('\n') + '\nBEAT ACCENTS (meta.accents; one per bar, strong on beat 1): ' + ACCENTS.join(', ') + '\nBACKGROUNDS (meta.bg; meta.intensity low|mid|high): ' + BGS.join(', ') + '\nANY SCENE: lower: "Name|Role" adds a lower-third.';
   if (type && SCENES[type]) {
     const d = SCENES[type];
     return `${type} (${d.main}) — ${d.d}\nfields: ${Object.entries(d.f).map(([k, v]) => k + (v ? ` (${v})` : '')).join('; ') || '—'}; dur (seconds, optional — auto if omitted); anim / tr (override the look for this scene); lower ("Name|Role" lower-third); win (window title, desk style); logo (image, hook/cta/ticket); voice (narration text → speech + captions); vo (your recording of that line); tr (transition out of this scene)\n${d.ex}`;

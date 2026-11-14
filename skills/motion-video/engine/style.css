@@ -14,8 +14,8 @@ b{font-weight:700}
 
 /* background */
 .mg-bg{position:absolute;inset:0}
-.blob{position:absolute;left:0;top:0;width:110%;aspect-ratio:1;border-radius:50%;background:radial-gradient(circle,var(--ac) 0,transparent 60%);opacity:.26}
-.blob.b2{background:radial-gradient(circle,var(--ac2) 0,transparent 60%);opacity:.17}
+.blob{position:absolute;left:0;top:0;width:110%;aspect-ratio:1;border-radius:50%;background:radial-gradient(circle,var(--ac) 0,transparent 60%);opacity:calc(.26 * var(--bgk,1))}
+.blob.b2{background:radial-gradient(circle,var(--ac2) 0,transparent 60%);opacity:calc(.17 * var(--bgk,1))}
 .grid{position:absolute;inset:0;background-image:linear-gradient(var(--line) 1px,transparent 1px),linear-gradient(90deg,var(--line) 1px,transparent 1px);background-size:2.4em 2.4em;opacity:.8;-webkit-mask-image:radial-gradient(ellipse at center,#000 15%,transparent 78%);mask-image:radial-gradient(ellipse at center,#000 15%,transparent 78%)}
 .mg-brand{position:absolute;left:0;right:0;bottom:calc(var(--pb)*.42);text-align:center;font-size:.62em;font-weight:600;letter-spacing:.08em;color:var(--mut)}
 .mg-prog{position:absolute;left:0;right:0;top:0;height:.16em;background:color-mix(in srgb,var(--fg) 10%,transparent)}
@@ -291,11 +291,11 @@ em.hl{background-image:linear-gradient(transparent 58%,color-mix(in srgb,var(--a
 .aurora{position:absolute;inset:0;overflow:hidden}
 .aurora i{position:absolute;left:-30%;right:-30%;height:40%;top:12%;background:radial-gradient(50% 50% at 35% 50%,color-mix(in srgb,var(--ac) 70%,transparent),transparent),radial-gradient(45% 50% at 68% 50%,color-mix(in srgb,var(--ac2) 70%,transparent),transparent);opacity:.4;will-change:transform}
 .aurora i+i{top:52%;background:radial-gradient(50% 50% at 62% 50%,color-mix(in srgb,var(--ac2) 70%,transparent),transparent),radial-gradient(40% 50% at 30% 50%,color-mix(in srgb,var(--ac) 60%,transparent),transparent);opacity:.3}
-.mesh .blob{opacity:.42}
-.blob.b3{background:radial-gradient(circle,color-mix(in srgb,var(--ac) 50%,var(--ac2)) 0,transparent 60%);opacity:.3;width:80%}
+.mesh .blob{opacity:calc(.38 * var(--bgk,1))}
+.blob.b3{background:radial-gradient(circle,color-mix(in srgb,var(--ac) 50%,var(--ac2)) 0,transparent 60%);opacity:calc(.3 * var(--bgk,1));width:80%}
 .mg-shapes{position:absolute;inset:0;overflow:hidden}
-.shp{position:absolute;left:0;top:0;color:var(--ac);opacity:.4}
-.shp.c1{color:var(--ac2)}.shp.c2{color:var(--fg);opacity:.25}
+.shp{position:absolute;left:0;top:0;color:var(--ac);opacity:calc(.4 * var(--bgk,1))}
+.shp.c1{color:var(--ac2)}.shp.c2{color:var(--fg);opacity:calc(.25 * var(--bgk,1))}
 .shp .sc{display:block;width:100%;height:100%;border-radius:50%;background:currentColor}
 .shp .sr{display:block;width:100%;height:100%;border-radius:50%;border:.18em solid currentColor}
 .shp svg{overflow:visible}.shp path{fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
@@ -385,3 +385,17 @@ em.hl{background-image:linear-gradient(transparent 58%,color-mix(in srgb,var(--a
 .mg-bg>*{will-change:transform}
 .land .mosaic.tall,.square .mosaic.tall{grid-template-columns:repeat(var(--n,4),1fr)}.mosaic.tall.n2{--n:2}.mosaic.tall.n3{--n:3}.mosaic.tall.n5{--n:5}.mosaic.tall.n6{--n:3}
 .mosaic.tall .mc{aspect-ratio:9/16}.land .mosaic.tall{width:min(100%,24em);margin:0 auto}.port .mosaic.tall{grid-template-columns:repeat(2,1fr)}
+
+/* calm zone: patterns fade out behind the content and only live at the edges; --bgk = meta.intensity */
+.mg-bg :is(.grid,.dots,.stripes,.halftone,.mg-shapes){-webkit-mask-image:radial-gradient(ellipse 70% 62% at 50% 50%,transparent 30%,#000 92%);mask-image:radial-gradient(ellipse 70% 62% at 50% 50%,transparent 30%,#000 92%)}
+.mg-bg .grid{opacity:calc(.8 * var(--bgk,1))}.mg-bg .dots{opacity:calc(.55 * var(--bgk,1))}.mg-bg .stripes{opacity:calc(var(--bgk,1))}
+.mg-bg .halftone{opacity:calc(.5 * var(--bgk,1))}.mg-bg .aurora{opacity:calc(var(--bgk,1))}
+/* beat accents */
+.mg-i{will-change:transform}
+.mg-i em{text-shadow:0 0 calc(var(--glow,0) * .9em) color-mix(in srgb,var(--ac) 75%,transparent)}
+.mg-hit{position:absolute;inset:0;z-index:13;pointer-events:none;overflow:hidden}
+.mg-hit .sweep{position:absolute;top:-10%;bottom:-10%;left:0;width:38%;display:none;background:linear-gradient(90deg,transparent,rgba(255,255,255,.22),transparent)}
+.mg-hit .flash{position:absolute;inset:0;background:#fff;opacity:0}
+.mg-hit .burst{position:absolute;inset:0;display:none}
+.mg-hit .burst i{position:absolute;left:0;top:0;width:.45em;height:.45em;margin:-.225em;border-radius:50%;background:var(--ac)}
+.mg-hit .burst i:nth-child(3n){background:var(--ac2)}.mg-hit .burst i:nth-child(4n){border-radius:.1em;width:.35em;height:.35em}

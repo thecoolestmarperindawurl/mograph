@@ -116,6 +116,8 @@ Engine tự biến tấu từng cảnh trong phạm vi look đó; `seed: 2` cho 
 | `editorial` | mask · highlight · type | diagonal · split · slide | halftone, grain | kiểu tạp chí |
 | `playful` | wave · pop · split | circle · flash · punch | mesh, hình khối | vui, lifestyle |
 
+Khi có nhạc, mỗi look còn có bộ **nhấn beat** riêng (lift, punch, tilt, rung, glitch, phát sáng chữ nhấn, vệt sáng quét, bắn hạt, tách màu, flash): mỗi ô nhịp đổi một kiểu, phách 1 mạnh, phách 2/4 nhẹ, và các mục trong danh sách hiện ra đúng nhịp. Nền mặc định dịu ở vùng nội dung (`intensity: low`); muốn nền nổi hơn thì đặt `mid` hoặc `high`.
+
 `mograph remix <spec>` dựng nhiều look/seed của cùng một spec rồi gộp vào **một ảnh** (khoảng 1.000 token) để chọn hướng,
 thay vì render thử nhiều lần. Danh sách đầy đủ: `mograph catalog looks`, `mograph catalog fx`.
 

@@ -71,7 +71,9 @@ Do not read rendered frames or the video back; do not open engine source unless 
 Looks (`meta.look`) — each sets text animations, transitions, background and overlays; `seed: 2` reshuffles:
 `clean` calm/corporate · `bold` short-form social energy · `kinetic` typography-led · `glitch` tech/AI (sparingly) ·
 `cinematic` slow brand story · `editorial` magazine/explainer · `playful` fun/lifestyle. `mg catalog looks` / `mg catalog fx` list the parts;
-`fx: [grain, leak]`, `bg:`, `transition:`, scene `anim:`/`tr:` override the look only when the user asks for something specific.
+With music the look also picks **beat accents** (a different hit each bar, strong on beat 1) and list items land on the beat.
+Backgrounds stay calm behind the content (`intensity: low`); `mid`/`high` only if the user wants a busier background.
+`fx: [grain, leak]`, `bg:`, `accents:`, `transition:`, scene `anim:`/`tr:` override the look only when the user asks for something specific.
 
 Style (`meta.style`): `slides` — one scene per cut; talking-point explainers, data stories. `desk` — every scene is a window card on one
 canvas, camera whip-pans between them; product/website tours, invites, announcements. In `desk`, add `win: title` per card,

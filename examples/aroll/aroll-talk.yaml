@@ -1,5 +1,5 @@
 # A-roll: your real video with real voice is the timeline; graphics cut in at spoken phrases.
-# talk.mp4 here is a stand-in (screen recording + TTS voice). Use your own: talking head, screen recording, podcast clip.
+# talk.mp4 here is a stand-in (screen recording + piper TTS voice; talk.srt has its exact sentence timings). Use your own: talking head, screen recording, podcast clip.
 # talk.srt = subtitles exported from CapCut/Premiere/YouTube or `mograph transcribe talk.mp4` (or script.txt → aligned to pauses).
 meta:
   size: "9:16"
@@ -12,13 +12,14 @@ scenes:
   - aroll: "Một câu lệnh / & thứ mình nhận được"
     num: 1
     image: ../lanhmar/assets/tool-ai-convert.jpg
-  - kinetic: ["Dán *kịch bản*", "vào Claude"]
+  - hook: "Dán *kịch bản* / vào Claude"
     at: "mình chỉ dán"
     pip: true
   - aroll: ""
     at: "AI tự viết"
-    zoom: 1.18
-    marks: ["circle 22 38 56 18", "arrow 80 70 62 56", "text 50 64 tự chọn hiệu ứng"]
+    zoom: 1.12
+    freeze: true
+    marks: ["circle 25 60 50 10", "arrow 80 47 70 58", "text 66 41 bấm là chạy"]
   - image: ../lanhmar/assets/shot-kho-bau-m.jpg
     title: "*Kho báu* công cụ miễn phí"
     at: "kho báu"

@@ -33,7 +33,7 @@ export function prepClip(ff, s, fps, maxW) {
 }
 
 // ---------- voiceover ----------
-const isVi = t => /[ăâđêôơưạảấầẩẫậắằẳẵặẹẻẽếềểễệỉịọỏốồổỗộớờởỡợụủứừửữựỳỵỷỹ]/i.test(t);
+const isVi = t => /[àáảãạăằắẳẵặâầấẩẫậđèéẻẽẹêềếểễệìíỉĩịòóỏõọôồốổỗộơờớởỡợùúủũụưừứửữựỳýỷỹỵ]/i.test(t);
 const has = (cmd, args = ['--version']) => { try { return run(cmd, args, { timeout: 15000 }).status === 0; } catch { return false; } };
 const PY = process.platform === 'win32' ? 'python' : 'python3';
 export function ttsEngines() {
@@ -56,6 +56,17 @@ function speak(engine, voice, rate, text, out, ff) {
       if (fs.existsSync(fail) && Date.now() - fs.statSync(fail).mtimeMs < 3600e3) throw new Error(`piper voice "${voice}" could not be downloaded recently (${fs.readFileSync(fail, 'utf8')}) — retry in an hour or delete ${fail}`);
       fs.mkdirSync(vdir, { recursive: true });
       const d = run(PY, ['-m', 'piper.download_voices', voice, '--download-dir', vdir]);
+      // Hugging Face blocked/unreachable: the same voices are re-published as GitHub release assets by sherpa-onnx
+      if (!fs.existsSync(model)) {
+        const tb = path.join(vdir, voice + '.tar.bz2');
+        const g = run('curl', ['-sfL', '-m', '600', '-o', tb, `https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/vits-piper-${voice}.tar.bz2`]);
+        if (g.status === 0 && run('tar', ['xjf', tb, '-C', vdir]).status === 0) {
+          const sub = path.join(vdir, 'vits-piper-' + voice);
+          for (const f of [voice + '.onnx', voice + '.onnx.json']) if (fs.existsSync(path.join(sub, f))) fs.renameSync(path.join(sub, f), path.join(vdir, f));
+          fs.rmSync(sub, { recursive: true, force: true });
+        }
+        fs.rmSync(tb, { force: true });
+      }
       if (!fs.existsSync(model)) { const why = d.stderr.toString().trim().split('\n').pop().slice(0, 160); fs.writeFileSync(fail, why); throw new Error(`piper voice "${voice}" not available (download failed: ${why})`); }
     }
     const r = run(PY, ['-m', 'piper', '-m', model, '-f', tmp, '--length-scale', String((1 / rate).toFixed(3))], { input: text });

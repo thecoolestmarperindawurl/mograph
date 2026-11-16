@@ -963,7 +963,7 @@
     if (prog) prog.firstChild.style.width = Math.min(100, (t / total) * 100) + '%';
     if (S.AR) {
       let ai = scenes.findIndex(sc => t >= sc.start && t < sc.start + sc.dur); if (ai < 0) ai = scenes.length - 1;
-      const sp = specRef.scenes[ai], mode = sp.type === 'aroll' ? 'full' : sp.pip ? 'pip' : 'off', k = Math.max(0, Math.min(S.AR.F.length - 1, Math.floor(t * S.AR.fps)));
+      const sp = specRef.scenes[ai], mode = sp.type === 'aroll' ? 'full' : sp.pip ? 'pip' : 'off', ft = sp.freeze != null && sp.freeze !== false ? scenes[ai].start + (sp.freeze === true ? 0 : +sp.freeze || 0) : t, k = Math.max(0, Math.min(S.AR.F.length - 1, Math.floor(ft * S.AR.fps)));
       S.AR.box.className = 'mg-aroll ' + mode;
       if (mode !== 'off' && S.AR.img._k !== k) { S.AR.img._k = k; S.AR.img.src = S.AR.F[k]; PEND.push(S.AR.img.decode().catch(() => {})); }
       const z = sp.zoom ? 1 + (sp.zoom - 1) * ease.out5(clamp((t - scenes[ai].start) / 0.35)) : 1;

@@ -99,7 +99,9 @@ timeline — do not write `voice:` lines or invent a script.
    a scene without `at` splits the gap evenly. Pattern from viral edits: `aroll` (face/screen, headline `num: 1`) → graphic
    scene with `pip: true` (footage stays as a round bubble) → back to `aroll` with `zoom: 1.15` (punch-in) → … → `cta`.
 5. Point at things in the footage: `marks: ["circle x y w h", "arrow x1 y1 x2 y2", "underline x y w", "text x y words"]`
-   (percent of the frame; draw on like a pen). Keep `text` marks above y 72 (captions live below). Use `mg sheet` to aim them.
+   (percent of the frame; draw on like a pen). Keep `text` marks above y 72 (captions live below).
+   Footage moves, so add `freeze: true` to that `aroll` scene (picture holds, voice continues), then aim with
+   `mg sheet <spec> --scenes N --grid` (10% grid over the frame) — never guess coordinates.
 6. Lint prints `🎬 aroll … cuts at …` — check the cut times land where the user says those words.
 
 ## Spec cheatsheet

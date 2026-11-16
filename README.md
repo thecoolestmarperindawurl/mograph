@@ -142,9 +142,10 @@ Rút ra từ các video TikTok kiểu "talking head + motion graphic": giọng n
 
 - `meta.aroll: talk.mp4` → video của bạn thành trục thời gian: tiếng giữ nguyên, nhạc tự hạ khi có giọng, video dài đúng bằng footage.
 - `meta.transcript: talk.srt` (xuất từ CapCut/Premiere/YouTube) hoặc `.words.json` từ `mograph transcribe` (faster-whisper, cần `pip install faster-whisper`) hoặc kịch bản `.txt` (khớp vào khoảng ngừng, gần đúng) → phụ đề theo từ và mốc cắt theo câu nói.
-- Cảnh `aroll` (footage toàn màn hình, tiêu đề + `num`, thẻ ảnh nổi, `zoom` punch-in), `at: "cụm từ được nói"`, `pip: true` (footage thu thành bong bóng tròn khi đồ hoạ chiếm màn hình), `marks` (khoanh tròn, mũi tên, gạch chân, chữ viết tay).
+- Cảnh `aroll` (footage toàn màn hình, tiêu đề + `num`, thẻ ảnh nổi, `zoom` punch-in), `at: "cụm từ được nói"`, `pip: true` (footage thu thành bong bóng tròn khi đồ hoạ chiếm màn hình), `marks` (khoanh tròn, mũi tên, gạch chân, chữ viết tay). Footage đang chạy thì thêm `freeze: true` (dừng hình, giọng vẫn chạy) và ngắm toạ độ bằng `mograph sheet … --grid`.
 - `mograph jumpcut talk.mp4` cắt các khoảng lặng trước khi dựng.
-- Ví dụ: `examples/aroll/aroll-talk.yaml` (footage mẫu là bản ghi màn hình + giọng TTS đứng thay cho giọng thật).
+- Giọng `piper` tự tải từ Hugging Face; nếu bị chặn sẽ tải bản sao trên GitHub (sherpa-onnx). Nhận diện tiếng Việt đã bắt đủ dấu (trước đây câu như "Xin chào, mình là…" bị đọc bằng giọng tiếng Anh).
+- Ví dụ: `examples/aroll/aroll-talk.yaml` (footage mẫu là bản ghi màn hình + giọng piper đứng thay cho giọng thật).
 
 ## 3D, Manim và đầu ra
 

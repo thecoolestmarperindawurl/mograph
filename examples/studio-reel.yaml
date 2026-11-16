@@ -1,0 +1,17 @@
+# Studio pack: editor-reel style (cutouts with the title behind, pill-to-card, mixed-scale type, 3D emoji, colour floods).
+meta: {size: "9:16", look: studio, theme: studio, music: upbeat}
+scenes:
+  - hook: "ever had / *an idea?*"
+  - card: lanhmar/assets/mascot-idea.jpg
+    bw: false
+    title: "Lan / Anh"
+    points: [SEO, Facebook Ads, Content, AI Agent]
+    emoji: "💡"
+  - subject: lanhmar/assets/mascot-idea.jpg
+    bw: false
+    title: "the / allrounder"
+    sub: Digital Marketer
+    shape: arch
+  - kinetic: ["let's make / *something*", "*good.*"]
+    emoji: "🔥"
+  - cta: "Ghé / *lanhmar.id.vn*"

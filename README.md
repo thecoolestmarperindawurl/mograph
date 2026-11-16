@@ -125,6 +125,17 @@ Các nhóm hiệu ứng được chọn theo những loại template dùng nhi�
 kinetic typography, chuyển cảnh, logo reveal, chữ typewriter/bounce/slide, glitch). Tất cả được viết lại từ đầu trong engine;
 repo không chứa template, asset hay mã của CapCut, Premiere Pro hay bên thứ ba nào.
 
+## Studio pack (v0.8): phong cách editor-reel trên TikTok
+
+Rút ra từ 5 video motion design nhiều lượt xem (~148 nghìn lượt): nền sáng một màu nhấn, ảnh người tách nền đen trắng với chữ to nằm phía sau, thẻ biến hình, chữ hai cỡ, emoji 3D, motion blur.
+
+- `subject: ảnh.jpg` tự tách nền (mô hình IS-Net/U²-Net từ bản phát hành của rembg, chạy ngay trong Chromium bằng onnxruntime-web, kết quả được lưu đệm), mặc định đen trắng, chữ to nằm sau chủ thể, hình nền `circle | arch | card`.
+- `card: ảnh.jpg` viên thuốc phình thành thẻ màu, ảnh tách nền nhô lên trong thẻ, tiêu đề đè góc thẻ, danh sách `points` mọc dần theo nhịp.
+- Chữ hai cỡ: `"ever had / *a problem?*"` (dòng nhỏ / dòng to).
+- `emoji: "🔥"` sticker emoji 3D (bộ Fluent 3D của Microsoft, MIT, qua gói `@lobehub/fluent-emoji-3d`, tự cài lần đầu).
+- `look: studio` + `theme: studio`: nền đường cong nét đứt, chuyển cảnh `flood` (màu loang), motion blur theo tốc độ, chữ Archivo đậm hẹp (OFL, đi kèm).
+- Lần đầu dùng sẽ tải mô hình tách nền (4,6 MB mặc định; `cutout: quality` dùng mô hình 176 MB) và cài onnxruntime-web.
+
 ## 3D, Manim và đầu ra
 
 - `3d: card | object | particles` dựng bằng three.js (MIT, đóng gói sẵn trong `engine/vendor`, chỉ nạp khi dùng): thẻ ảnh sản phẩm nghiêng xoay có bóng đổ, khối 3D màu thương hiệu sau tiêu đề, trường hạt tăng tốc theo beat. Render chậm hơn cảnh thường khoảng 3 lần trên máy không có GPU.

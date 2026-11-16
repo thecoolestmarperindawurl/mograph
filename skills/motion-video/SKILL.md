@@ -65,6 +65,7 @@ Do not read rendered frames or the video back; do not open engine source unless 
 | A conversation with an AI / tool use | `chat` | typed reply, tool chips |
 | A command-line demo | `term` | typed commands |
 | A list of points | `bullets` · `check` (cursor ticks them) | stagger |
+| A person / a hero object (editor-reel style) | `subject` (photo → background removed automatically, title BEHIND it, accent shape) · `card` (pill grows into a card with the cutout, list grows below) | the signature TikTok motion-design look |
 | A person | `profile` | avatar + typed quote |
 | Time / place of an event | `clock` · `pin` | clock sweep · pin drop |
 | A saying | `quote` | |
@@ -72,7 +73,7 @@ Do not read rendered frames or the video back; do not open engine source unless 
 
 Looks (`meta.look`) — each sets text animations, transitions, background and overlays; `seed: 2` reshuffles:
 `clean` calm/corporate · `bold` short-form social energy · `kinetic` typography-led · `glitch` tech/AI (sparingly) ·
-`cinematic` slow brand story · `editorial` magazine/explainer · `playful` fun/lifestyle. `mg catalog looks` / `mg catalog fx` list the parts;
+`cinematic` slow brand story · `editorial` magazine/explainer · `playful` fun/lifestyle · `studio` editor-reel: off-white, one accent, swoosh lines, colour floods, motion blur, condensed type (pair with `theme: studio` or the brand's colours). `mg catalog looks` / `mg catalog fx` list the parts;
 With music the look also picks **beat accents** (a different hit each bar, strong on beat 1) and list items land on the beat.
 Backgrounds stay calm behind the content (`intensity: low`); `mid`/`high` only if the user wants a busier background.
 `fx: [grain, leak]`, `bg:`, `accents:`, `transition:`, scene `anim:`/`tr:` override the look only when the user asks for something specific.
@@ -126,6 +127,8 @@ scenes:
 
 ## Writing rules that decide quality
 
+- Mixed-scale headlines: `"small lead / BIG WORDS"` (one slash with spaces) stacks a light small line over heavy big words — the most-used title treatment in short-form motion design. Use it for hooks and titles.
+- `emoji: "🔥"` on any scene adds a 3D emoji sticker (Fluent 3D set, installed on first use); one or two per video.
 - Long URLs and handles go in `sub` (hook, cta, sting take `sub`), not in the headline.
 - Hook ≤ 8 words with one `*accent*`. Titles ≤ 6 words. Items ≤ 6 words; detail goes after `|`. Kicker ≤ 3 words.
 - 3–4 items per scene; split rather than shrink. `fitNN%` under 80 in lint = too much text — cut words.

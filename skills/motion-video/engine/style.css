@@ -1,3 +1,10 @@
+/* Archivo (SIL OFL 1.1): condensed/heavy headlines for the studio look */
+@font-face{font-family:'Archivo';font-style:normal;font-weight:100 900;font-stretch:62% 125%;font-display:block;src:url(fonts/archivo-vietnamese-wdth-normal.woff2) format('woff2');unicode-range: U+0102-0103,U+0110-0111,U+0128-0129,U+0168-0169,U+01A0-01A1,U+01AF-01B0,U+0300-0301,U+0303-0304,U+0308-0309,U+0323,U+0329,U+1EA0-1EF9,U+20AB;}
+@font-face{font-family:'Archivo';font-style:normal;font-weight:100 900;font-stretch:62% 125%;font-display:block;src:url(fonts/archivo-latin-ext-wdth-normal.woff2) format('woff2');unicode-range: U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF;}
+@font-face{font-family:'Archivo';font-style:normal;font-weight:100 900;font-stretch:62% 125%;font-display:block;src:url(fonts/archivo-latin-wdth-normal.woff2) format('woff2');unicode-range: U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD;}
+@font-face{font-family:'Archivo';font-style:italic;font-weight:100 900;font-stretch:62% 125%;font-display:block;src:url(fonts/archivo-vietnamese-wdth-italic.woff2) format('woff2');unicode-range: U+0102-0103,U+0110-0111,U+0128-0129,U+0168-0169,U+01A0-01A1,U+01AF-01B0,U+0300-0301,U+0303-0304,U+0308-0309,U+0323,U+0329,U+1EA0-1EF9,U+20AB;}
+@font-face{font-family:'Archivo';font-style:italic;font-weight:100 900;font-stretch:62% 125%;font-display:block;src:url(fonts/archivo-latin-ext-wdth-italic.woff2) format('woff2');unicode-range: U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF;}
+@font-face{font-family:'Archivo';font-style:italic;font-weight:100 900;font-stretch:62% 125%;font-display:block;src:url(fonts/archivo-latin-wdth-italic.woff2) format('woff2');unicode-range: U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD;}
 /* Montserrat (SIL OFL 1.1) bundled so brand themes render the same on every machine */
 @font-face{font-family:'Montserrat';font-style:normal;font-weight:100 900;font-display:block;src:url(fonts/montserrat-vietnamese-wght-normal.woff2) format('woff2');unicode-range: U+0102-0103,U+0110-0111,U+0128-0129,U+0168-0169,U+01A0-01A1,U+01AF-01B0,U+0300-0301,U+0303-0304,U+0308-0309,U+0323,U+0329,U+1EA0-1EF9,U+20AB;}
 @font-face{font-family:'Montserrat';font-style:normal;font-weight:100 900;font-display:block;src:url(fonts/montserrat-latin-ext-wght-normal.woff2) format('woff2');unicode-range: U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF;}
@@ -412,3 +419,55 @@ em.hl{background-image:linear-gradient(transparent 58%,color-mix(in srgb,var(--a
 .g3pre{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
 .g3.card{position:relative}
 .w.ink{color:color-mix(in srgb,currentColor calc(var(--ink,0) * 100%),color-mix(in srgb,var(--mut) 45%,transparent))}
+
+/* ---------- v0.8 studio pack ---------- */
+/* mixed-scale headlines */
+.duo .dl{display:block}
+.duo .lead{font-size:.4em;font-weight:500;letter-spacing:0;line-height:1.15;color:var(--mut);margin-bottom:-.05em}
+.duo .main{line-height:.98}
+/* studio look: condensed heavy type */
+.lk-studio{--font:"Archivo","Inter",system-ui,sans-serif}
+.lk-studio :is(.big,.title,.kt,.subj-title .big,.mcard-title){font-family:"Archivo",var(--font);font-stretch:78%;font-weight:850;letter-spacing:-.035em}
+.lk-studio .duo .lead{font-stretch:100%;font-weight:500;letter-spacing:-.01em}
+.lk-studio em{font-style:italic}
+/* swoosh background */
+.swoosh{position:absolute;inset:-6%;will-change:transform}
+.swoosh svg path{fill:none;stroke:var(--ac2);stroke-opacity:calc(.45 * var(--bgk,1) + .1);stroke-width:.35;stroke-dasharray:1.6 1.2;vector-effect:non-scaling-stroke}
+.swoosh svg{stroke-width:2px}
+.swoosh svg path{stroke-width:2.2px}
+/* flood transition */
+.mg-flood{position:absolute;inset:0;z-index:15;display:none;pointer-events:none;overflow:hidden}
+.mg-flood i{position:absolute;left:50%;top:50%;border-radius:50%;background:var(--ac);transform-origin:center;translate:-50% -50%}
+/* stickers (3D emoji) */
+.sticker{position:absolute;right:4%;top:-1.6em;width:4.2em;height:4.2em;object-fit:contain;z-index:4;filter:drop-shadow(0 .4em .6em rgba(0,0,0,.18))}
+.mg-i{position:relative}
+.subj-box .sticker{top:auto;bottom:14%;right:6%}
+.mcard .sticker{top:-2.6em;right:8%}
+/* subject (cutout with title behind) */
+.subj-host .mg-c{display:none}
+.subj-box{position:absolute;inset:var(--pt) var(--px) 0;z-index:1}
+.subj-shape{position:absolute;left:50%;bottom:8%;width:min(78%,40em);aspect-ratio:1;translate:-50% 0;border-radius:50%;background:var(--ac)}
+.sh-arch .subj-shape{border-radius:50% 50% .6em .6em/38% 38% .6em .6em;aspect-ratio:.8;bottom:0}
+.sh-card .subj-shape{border-radius:1.2em;aspect-ratio:.75;bottom:0}
+.sh-none .subj-shape{display:none}
+.subj-title{position:absolute;left:0;right:0;top:19%;text-align:center}
+.subj-title .big{font-size:4.2em;line-height:.95;color:var(--head);text-wrap:balance}
+.land .subj-title{top:6%}
+.subj-img{position:absolute;left:50%;bottom:0;height:76%;max-width:100%;object-fit:contain;translate:-50% 0;filter:drop-shadow(0 1em 1.6em rgba(0,0,0,.18))}
+.land .subj-img{height:84%}
+.subj-front{position:absolute;left:0;right:0;bottom:6%;display:flex;flex-direction:column;align-items:center;gap:.5em;text-align:center;z-index:2}
+.subj-front .sub{background:var(--card);padding:.35em .9em;border-radius:99em;color:var(--fg);font-weight:600;box-shadow:0 .4em 1.2em rgba(0,0,0,.1)}
+.subj-front .kicker{align-self:center;background:var(--card);padding:.35em .8em;border-radius:99em}
+/* card (pill -> card) */
+.mcard-wrap{position:relative;display:flex;flex-direction:column;align-items:flex-start;gap:.9em;width:100%}
+.mcard{position:relative;overflow:visible;border-radius:1em;background:linear-gradient(140deg,color-mix(in srgb,var(--ac) 82%,#fff),var(--ac));box-shadow:0 1.4em 3em color-mix(in srgb,var(--ac) 35%,transparent)}
+.mcard-img{position:absolute;left:50%;bottom:0;height:118%;max-width:96%;object-fit:contain;translate:-50% 0;border-radius:0 0 1em 1em}
+.mcard-title{position:absolute;left:.5em;bottom:.35em;font-size:2.6em;line-height:.95;color:#fff;font-weight:850;text-shadow:0 .08em .3em rgba(0,0,0,.25);z-index:2}
+.mcard-title .lead{color:rgba(255,255,255,.85)}
+.mcard-list{position:relative;display:flex;flex-direction:column;gap:.55em;padding-left:1.6em}
+.mcl-bar{position:absolute;left:.42em;top:.5em;bottom:.5em;width:.16em;border-radius:1em;background:var(--ac);transform-origin:top}
+.mcl-it{position:relative;font-size:1.05em}
+.mcl-it b{font-weight:650}
+.mcl-it small{display:inline;margin-left:.5em}
+.mcl-dot{position:absolute;left:-1.42em;top:.32em;width:.6em;height:.6em;border-radius:50%;background:var(--ac);box-shadow:0 0 0 .2em var(--bg)}
+.mcard-title,.mcard-title .main{color:#fff}

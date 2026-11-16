@@ -6,6 +6,7 @@
     terminal: { bg: '#07100c', fg: '#e6f5ea', mut: '#7f9c8a', ac: '#4ade80', ac2: '#facc15', card: '#0e1b14', line: '#1f3a2b' },
     meadow: { bg: '#3c8a4b', fg: '#fdf9ec', mut: '#d3e6cf', ac: '#f3e0ad', ac2: '#ffd9c7', card: '#337a41', line: '#5aa567', win: '#f5f3ed', ink: '#1d2a21', inkmut: '#6c776e', cline: '#dfdccf', chip: '#e8efe5', wac: '#2f7a3f', wac2: '#e7b53c' },
     lanhmar: { bg: '#F3F1FD', fg: '#241F45', mut: '#55507A', ac: '#FF7A45', ac2: '#6A5CFF', card: '#FFFFFF', line: '#D6CEF7', head: '#2D2FEF', kick: '#A6380D', band: '#6A5CFF', win: '#FFFFFF', ink: '#241F45', inkmut: '#55507A', cline: '#D6CEF7', chip: '#F3F1FD', wac: '#2D2FEF', wac2: '#FF7A45', whead: '#2D2FEF', wkick: '#A6380D', font: 'Montserrat' },
+    studio: { bg: '#F1F1F3', fg: '#1A1A22', mut: '#6E6E7A', ac: '#5B2A86', ac2: '#9A6BD1', card: '#FFFFFF', line: '#E2E2EA', head: '#1A1A22', kick: '#5B2A86', band: '#5B2A86', font: 'Archivo' },
     sunset: { bg: '#160b1f', fg: '#fff6ee', mut: '#b9a4b8', ac: '#ff7a3d', ac2: '#b06cff', card: '#22122e', line: '#3c2350' },
   };
   const ease = {
@@ -24,6 +25,7 @@
     glitch: { anim: ['scramble', 'glitch', 'type'], tr: ['glitch', 'cut', 'whip'], bg: 'grid', fx: ['scan', 'rgb', 'grain'] },
     cinematic: { anim: ['blur', 'ink', 'mask'], tr: ['fade', 'circle', 'dip'], bg: 'aurora', fx: ['vignette', 'grain', 'leak'], pace: 1.15 },
     editorial: { anim: ['mask', 'highlight', 'ink'], tr: ['diagonal', 'split', 'dip'], bg: 'halftone', fx: ['grain'] },
+    studio: { anim: ['blur', 'mask', 'pop'], tr: ['flood', 'whip', 'fade'], bg: 'swoosh', fx: [], mblur: true },
     playful: { anim: ['wave', 'pop', 'split'], tr: ['circle', 'flash', 'punch'], bg: 'mesh', fx: ['shapes'] },
   };
   const mulberry = a => () => { a = (a + 0x6d2b79f5) >>> 0; let x = Math.imul(a ^ (a >>> 15), 1 | a); x = (x + Math.imul(x ^ (x >>> 7), 61 | x)) ^ x; return ((x ^ (x >>> 14)) >>> 0) / 4294967296; };
@@ -35,6 +37,7 @@
   const GLY = 'ABCDEFGHJKMNPQRSTUVWXYZ0123456789#%&*+=?<>/';
   let U = 40;
   let PEND = [];
+  let MBLUR = false;
 
   class TL {
     constructor() { this.tw = []; this.fns = []; this.lives = []; this.sorted = false; }
@@ -43,7 +46,7 @@
     live(f) { this.lives.push(f); }
     seek(t) {
       if (!this.sorted) { this.tw.sort((a, b) => a.at - b.at); this.sorted = true; }
-      const st = new Map();
+      const st = new Map(), vel = new Map(), dt = 1 / 30;
       for (const w of this.tw) {
         let s = st.get(w.el); if (!s) st.set(w.el, (s = {}));
         const raw = (t - w.at) / w.dur;
@@ -51,6 +54,11 @@
           const [a, b] = w.props[k];
           if (raw <= 0) { if (!(k in s)) s[k] = a; }
           else s[k] = a + (b - a) * (raw >= 1 ? 1 : ease[w.e](raw));
+          // per-frame displacement of moving tweens -> motion blur
+          if (MBLUR && raw > 0 && raw < 1 + dt / w.dur && (k === 'x' || k === 'y' || k === 'scale')) {
+            const r0 = Math.max(0, (t - dt - w.at) / w.dur), d = (b - a) * ((raw >= 1 ? 1 : ease[w.e](raw)) - ease[w.e](Math.min(1, r0)));
+            vel.set(w.el, (vel.get(w.el) || 0) + Math.abs(d) * (k === 'scale' ? 8 : 1));
+          }
         }
       }
       for (const [el, s] of st) {
@@ -62,7 +70,8 @@
         if ('sy' in s) tr += ` scaleY(${s.sy})`;
         if ('rotate' in s) tr += ` rotate(${s.rotate}deg)`;
         if (tr) el.style.transform = tr;
-        if ('blur' in s) el.style.filter = s.blur > 0.01 ? `blur(${(s.blur * U) / 40}px)` : 'none';
+        const mb = MBLUR ? Math.min(14, (vel.get(el) || 0) * U * 0.32) : 0, bl = Math.max('blur' in s ? (s.blur * U) / 40 : 0, mb);
+        if ('blur' in s || MBLUR) el.style.filter = bl > 0.3 ? `blur(${bl.toFixed(2)}px)` : 'blur' in s ? 'none' : '';
       }
       for (const f of this.fns) { const raw = (t - f.at) / f.dur; f.f(raw <= 0 ? 0 : raw >= 1 ? 1 : ease[f.e](raw)); }
       for (const f of this.lives) f(t);
@@ -88,6 +97,12 @@
       },
       // headline reveal in the scene's text animation (c.anim); returns end time
       words(el, text, at = 0, stagger = 0.055) {
+        // "small lead / BIG words" stacks a light small line over a heavy big one (mixed-scale type)
+        if (/ \/ /.test(String(text))) {
+          el.classList.add('duo'); let t = at;
+          String(text).split(/ \/ /).forEach((ln, i, all) => { const d = c.h('span', 'dl ' + (i === 0 && all.length > 1 ? 'lead' : 'main'), '', el); t = c.words(d, ln, i ? Math.max(at + 0.12, t - 0.25) : t, stagger); });
+          return t;
+        }
         const out = [], A = c.anim;
         String(text).split(/(\*[^*]+\*)/).forEach(seg => {
           if (!seg) return;
@@ -462,6 +477,38 @@
       return { end: t, read: 2.6 };
     },
     manim(s, c) { return B.clip(s, c); },
+    // cutout subject: accent shape grows, big title sits BEHIND the subject, small lines in front
+    subject(s, c) {
+      const host = c.el.closest('.mg-scene'); host.classList.add('subj-host', 'sh-' + (s.shape || 'circle'));
+      const box = c.h('div', 'subj-box', '', host);
+      const shape = c.h('div', 'subj-shape', '', box), back = c.h('div', 'subj-title', '', box), img = c.h('img', 'subj-img', null, box), front = c.h('div', 'subj-front', '', box);
+      img.src = s.subject;
+      c.tl.add(shape, { scale: [0, 1], opacity: [0, 1] }, 0, 0.6, 'back');
+      let t = 0.25;
+      if (s.title) { const h = c.h('div', 'big', '', back); t = c.words(h, s.title, 0.25, 0.07); }
+      c.tl.add(img, { opacity: [0, 1], y: [3.5, 0], scale: [1.08, 1] }, 0.35, 0.75, 'out5');
+      if (s.kicker) c.up(c.h('div', 'kicker', rich(s.kicker), front), 0.6, 0.5, 0.4);
+      if (s.sub || s.caption) t = Math.max(t, c.up(c.h('p', 'sub', rich(s.sub || s.caption), front), t));
+      return Math.max(t, 1.2);
+    },
+    // card: a pill grows into a card, the photo settles inside, the title overlaps its corner, a list grows below
+    card(s, c) {
+      const wrap = c.h('div', 'mcard-wrap'), card = c.h('div', 'mcard', '', wrap), img = c.h('img', 'mcard-img', null, card);
+      img.src = s.card;
+      c.tl.fn(0, 0.7, p => { card.style.width = (34 + 66 * p).toFixed(2) + '%'; card.style.height = (2.2 + (c.portrait ? 13.8 : 10.8) * p).toFixed(2) + 'em'; card.style.borderRadius = (2.2 - 1.2 * p).toFixed(2) + 'em'; }, 'inout');
+      c.tl.add(card, { opacity: [0, 1], y: [1.2, 0] }, 0, 0.35, 'out5');
+      c.tl.add(img, { opacity: [0, 1], scale: [1.25, 1], y: [1.5, 0] }, 0.5, 0.8, 'out5');
+      let t = 0.75;
+      if (s.title) { const h = c.h('div', 'mcard-title', '', card); t = c.words(h, s.title, 0.75, 0.06); }
+      if (s.kicker) c.up(c.h('div', 'kicker', rich(s.kicker), wrap), 0.6, 0.5, 0.4);
+      if (s.points) {
+        const ul = c.h('div', 'mcard-list', '', wrap), bar = c.h('i', 'mcl-bar', null, ul), n = s.points.length, t0 = c.bq(t), st = c.bs(0.35);
+        c.tl.add(bar, { sy: [0, 1] }, t0, n * st, 'linear');
+        s.points.forEach((it, i) => { const [a, b] = pair(it); c.up(c.h('div', 'mcl-it', `<span class="mcl-dot"></span><b>${rich(a)}</b>${b ? `<small>${rich(b)}</small>` : ''}`, ul), t0 + i * st, 0.4, 0.3); });
+        t = t0 + n * st + 0.3;
+      }
+      return t;
+    },
     // kinetic typography: one short phrase per beat-length slot, each with its own animation and layout
     kinetic(s, c) {
       c.el.classList.add('kin-host');
@@ -650,6 +697,7 @@
     const th = { win: t0.card, ink: t0.fg, inkmut: t0.mut, cline: t0.line, chip: `color-mix(in srgb,${t0.fg} 7%,transparent)`, wac: t0.ac, wac2: t0.ac2, head: t0.fg, kick: t0.ac2, band: t0.ac, ...t0 };
     th.whead = th.whead || th.ink; th.wkick = th.wkick || th.wac2;
     if (typeof m.theme === 'string') stage.classList.add('th-' + m.theme); else if (m.theme && m.theme.base) stage.classList.add('th-' + m.theme.base);
+    if (m.look) stage.classList.add('lk-' + m.look);
     for (const k of ['bg', 'fg', 'mut', 'ac', 'ac2', 'card', 'line', 'win', 'ink', 'inkmut', 'cline', 'chip', 'wac', 'wac2', 'head', 'kick', 'band', 'whead', 'wkick']) stage.style.setProperty('--' + k, th[k]);
     stage.style.setProperty('--font', (th.font ? `"${th.font}",` : '') + '"Inter","Montserrat","Be Vietnam Pro",system-ui,-apple-system,"Segoe UI",sans-serif');
     stage.style.setProperty('--pt', (portrait ? 0.11 : 0.08) * H + 'px');
@@ -668,16 +716,18 @@
       s._v = Math.floor(R() * 4);
     });
     // beat accents: a different hit per bar (strong on beat 1, medium on 3, light on 2/4) instead of one bounce
-    const ACC = { clean: ['lift', 'glow', 'sweep'], bold: ['punch', 'tilt', 'burst', 'shake'], kinetic: ['punch', 'tilt', 'sweep'], glitch: ['jitter', 'rgb', 'flash'], cinematic: ['glow', 'sweep', 'lift'], editorial: ['sweep', 'lift', 'tilt'], playful: ['burst', 'tilt', 'punch'] };
+    const ACC = { studio: ['lift', 'sweep'], clean: ['lift', 'glow', 'sweep'], bold: ['punch', 'tilt', 'burst', 'shake'], kinetic: ['punch', 'tilt', 'sweep'], glitch: ['jitter', 'rgb', 'flash'], cinematic: ['glow', 'sweep', 'lift'], editorial: ['sweep', 'lift', 'tilt'], playful: ['burst', 'tilt', 'punch'] };
     const acc = m.pulse === false || m.accents === 'off' ? [] : [].concat(m.accents || (LK ? ACC[m.look] : ['lift', 'glow', 'sweep']));
+    MBLUR = m.mblur ?? !!(LK && LK.mblur);
     const pace = m.pace ?? (LK && LK.pace) ?? 1, fx = new Set([].concat(m.fx ?? (LK ? LK.fx : [])).filter(Boolean));
     const bgk = m.bg || (LK && LK.bg) || 'glow', bg = document.createElement('div');
     bg.className = 'mg-bg';
-    bg.innerHTML = ({ grid: '<div class="grid"></div>', dots: '<div class="dots"></div>', stripes: '<div class="stripes"></div>', halftone: '<div class="halftone"></div>', aurora: '<div class="aurora"><i></i><i></i></div>' }[bgk] || '')
+    const sw = bgk === 'swoosh' ? '<div class="swoosh"><svg viewBox="0 0 100 100" preserveAspectRatio="none">' + [[-10, 18, 40, 4, 110, 22], [-10, 52, 30, 30, 110, 40], [-10, 84, 55, 66, 110, 92], [20, -5, 60, 30, 95, 8], [5, 110, 50, 75, 105, 70]].map(([a, b, cx, cy, d, e]) => `<path d="M${a} ${b} Q${cx} ${cy} ${d} ${e}"/>`).join('') + '</svg></div>' : '';
+    bg.innerHTML = sw + ({ grid: '<div class="grid"></div>', dots: '<div class="dots"></div>', stripes: '<div class="stripes"></div>', halftone: '<div class="halftone"></div>', aurora: '<div class="aurora"><i></i><i></i></div>' }[bgk] || '')
       + (bgk !== 'plain' ? '<div class="blob b1"></div><div class="blob b2"></div>' + (bgk === 'mesh' ? '<div class="blob b3"></div>' : '') : '');
     if (bgk === 'mesh') bg.classList.add('mesh');
     stage.appendChild(bg);
-    const blobs = [...bg.querySelectorAll('.blob')], bgAnim = bg.querySelector('.stripes,.halftone,.aurora');
+    const blobs = [...bg.querySelectorAll('.blob')], bgAnim = bg.querySelector('.stripes,.halftone,.aurora,.swoosh');
     let shapes = [];
     if (fx.has('shapes')) {
       const sh = document.createElement('div'); sh.className = 'mg-shapes'; bg.appendChild(sh);
@@ -710,6 +760,11 @@
       } else cbox.appendChild(inner);
       el.appendChild(cbox);
       const tl = new TL(), r = B[s.type](s, ctx(inner, tl, portrait, m, s));
+      if (s._emoji) {
+        const st = document.createElement('img'); st.className = 'sticker'; st.src = s._emoji;
+        const host = inner.querySelector('.subj-box,.mcard') || inner; host.appendChild(st);
+        tl.add(st, { opacity: [0, 1], scale: [0.2, 1], rotate: [-18, 0], y: [0.8, 0] }, Math.max(0.5, (r && r.end ? r.end : 1) - 0.3), 0.55, 'back');
+      }
       if (s.lower) {
         const [la, lb] = pair(s.lower), lo = document.createElement('div');
         lo.className = 'lower'; lo.innerHTML = `<i></i><div><b>${rich(la)}</b>${lb ? `<span>${rich(lb)}</span>` : ''}</div>`; el.appendChild(lo);
@@ -751,7 +806,7 @@
     let cap = null;
     if (m.captions !== false && scenes.some(x => x.vo && x.vo.cues && x.vo.cues.length)) { cap = document.createElement('div'); cap.className = 'mg-cap'; stage.appendChild(cap); }
     const ov = {};
-    if (!desk) for (const [k, html] of [['wipe', '<i></i><b></b>'], ['flash', ''], ['split', '<i></i><b></b>']]) if (scenes.some(x => x.tr === k)) { const e = document.createElement('div'); e.className = 'mg-' + k; e.innerHTML = html; stage.appendChild(e); ov[k] = e; }
+    if (!desk) for (const [k, html] of [['wipe', '<i></i><b></b>'], ['flash', ''], ['split', '<i></i><b></b>'], ['flood', '<i></i>']]) if (scenes.some(x => x.tr === k)) { const e = document.createElement('div'); e.className = 'mg-' + k; e.innerHTML = html; stage.appendChild(e); ov[k] = e; }
     let prog = null;
     if (m.progress) { prog = document.createElement('div'); prog.className = 'mg-prog'; prog.innerHTML = '<i></i>'; stage.appendChild(prog); }
 
@@ -874,6 +929,7 @@
       if (d == null) continue;
       if (k === 'wipe') e.style.transform = `translateX(${(d < 0 ? -100 + 100 * ease.inout((d + 0.36) / 0.36) : 100 * ease.inout(d / 0.36)).toFixed(2)}%)`;
       else if (k === 'flash') e.style.opacity = Math.max(0, 1 - Math.abs(d) / 0.3).toFixed(3);
+      else if (k === 'flood') { const R = Math.hypot(W, H) / 2; e.firstChild.style.transform = `scale(${(d < 0 ? ease.in((d + 0.36) / 0.36) : 1).toFixed(4)})`; e.firstChild.style.width = e.firstChild.style.height = (R * 2).toFixed(0) + 'px'; e.style.clipPath = d < 0 ? '' : `inset(0 0 ${(ease.inout(d / 0.36) * 100).toFixed(2)}% 0)`; }
       else { const q = d < 0 ? ease.inout((d + 0.36) / 0.36) : 1 - ease.inout(d / 0.36), v = ((1 - q) * 100).toFixed(2); e.firstChild.style.transform = `translate${H > W ? 'Y' : 'X'}(-${v}%)`; e.lastChild.style.transform = `translate${H > W ? 'Y' : 'X'}(${v}%)`; }
     }
     // effects: beat (or cut) kick drives shake and colour split; grain, leak, shapes and textured backgrounds drift
@@ -888,7 +944,7 @@
       if (fx.has('leak')) { const [a, b] = S.fxl.querySelectorAll('.leak i'); a.style.transform = `translate(${(-0.3 + 0.25 * Math.sin(t * 0.4)) * W}px,${(-0.2 + 0.1 * Math.cos(t * 0.33)) * H}px)`; b.style.transform = `translate(${(0.45 + 0.2 * Math.cos(t * 0.31)) * W}px,${(0.5 + 0.12 * Math.sin(t * 0.27)) * H}px)`; a.style.opacity = (0.35 + 0.25 * Math.sin(t * 0.9)).toFixed(3); }
       if (fx.has('scan')) S.fxl.querySelector('.scan').style.backgroundPosition = `0 ${((t * 40) % 400).toFixed(1)}px`;
       for (const o of S.shapes) o.e.style.transform = `translate(${((o.x + 0.04 * Math.sin(t * o.v + o.ph)) * W).toFixed(1)}px,${((((o.y - t * 0.012 * o.v) % 1) + 1) % 1 * H).toFixed(1)}px) rotate(${(o.r + t * 10 * o.v).toFixed(1)}deg)`;
-      if (S.bgAnim) { const c = S.bgAnim.className; if (c === 'stripes') S.bgAnim.style.transform = `translateX(${((t * 0.8 * U) % (2.687 * U)).toFixed(1)}px)`; else if (c === 'halftone') S.bgAnim.style.transform = `translate(${(Math.sin(t * 0.3) * U).toFixed(1)}px,${(-t * 0.25 * U % (1.2 * U)).toFixed(1)}px)`; else { const [a, b] = S.bgAnim.children; a.style.transform = `translateX(${(Math.sin(t * 0.25) * 0.15 * W).toFixed(1)}px) skewY(${(-8 + 4 * Math.sin(t * 0.3)).toFixed(2)}deg)`; b.style.transform = `translateX(${(Math.cos(t * 0.21) * 0.18 * W).toFixed(1)}px) skewY(${(6 + 4 * Math.cos(t * 0.27)).toFixed(2)}deg)`; } }
+      if (S.bgAnim) { const c = S.bgAnim.className; if (c === 'stripes') S.bgAnim.style.transform = `translateX(${((t * 0.8 * U) % (2.687 * U)).toFixed(1)}px)`; else if (c === 'swoosh') { S.bgAnim.firstChild.style.strokeDashoffset = (-t * 2.2).toFixed(2); S.bgAnim.style.transform = `translate(${(Math.sin(t * 0.2) * 0.6 * U).toFixed(1)}px,${(Math.cos(t * 0.17) * 0.5 * U).toFixed(1)}px)`; } else if (c === 'halftone') S.bgAnim.style.transform = `translate(${(Math.sin(t * 0.3) * U).toFixed(1)}px,${(-t * 0.25 * U % (1.2 * U)).toFixed(1)}px)`; else { const [a, b] = S.bgAnim.children; a.style.transform = `translateX(${(Math.sin(t * 0.25) * 0.15 * W).toFixed(1)}px) skewY(${(-8 + 4 * Math.sin(t * 0.3)).toFixed(2)}deg)`; b.style.transform = `translateX(${(Math.cos(t * 0.21) * 0.18 * W).toFixed(1)}px) skewY(${(6 + 4 * Math.cos(t * 0.27)).toFixed(2)}deg)`; } }
     }
     const pend = PEND; PEND = [];
     return pend.length ? Promise.all(pend) : undefined;

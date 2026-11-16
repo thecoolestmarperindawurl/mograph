@@ -8,6 +8,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { createRequire } from 'node:module';
 import { normalize, catalog, themeColors } from './schema.mjs';
 import { STYLES, synth, detectBeat } from './audio.mjs';
+import { cutouts } from './cutout.mjs';
 import { probe, prepClip, prepVoices, mixAudio, ttsEngines, writeSrt, extras, prepManim, manimCmd, CACHE } from './media.mjs';
 
 const require = createRequire(import.meta.url);
@@ -49,7 +50,7 @@ function load(file) {
     for (const s of r.spec.scenes) for (const k of ['image', 'logo', 'avatar']) if (k !== 'image' || s.type === 'image' || s.type === '3d') res(s, k);
     const VID = /\.(mp4|mov|webm|m4v)$/i;
     for (const s of r.spec.scenes) {
-      for (const k of ['split', 'device', 'sting']) if (s.type === k) res(s, k);
+      for (const k of ['split', 'device', 'sting', 'subject', 'card']) if (s.type === k) res(s, k);
       if (s.type === 'grid' && Array.isArray(s.grid)) s.grid = s.grid.map(g => { const o = { g }; res(o, 'g'); return o.g; });
       if (s.type === 'device' && VID.test(s.device)) s.clip = fileURLToPath(s.device);
     }
@@ -77,6 +78,31 @@ function prepMedia(r, fps, maxW) {
   for (const s of sp.scenes) if (s.type === 'clip' || (s.type === 'device' && s.clip) || (s.type === 'manim' && s.clip)) try { prepClip(ff, s, fps, maxW); } catch (e) { r.errors.push(e.message); }
   try { const v = prepVoices(ff, sp, r.dir); if (v) { r.voice = v; notes.push(...v.notes); } } catch (e) { r.errors.push(e.message); }
   r.warns.push(...notes);
+}
+// studio pack: cut out subjects (background removal, cached) and resolve 3D emoji stickers
+async function prepStudio(r, br) {
+  const sp = r.spec, jobs = [], model = sp.meta.cutout || 'fast';
+  sp.scenes.forEach((s, i) => {
+    const k = s.type === 'subject' ? 'subject' : s.type === 'card' && s.cutout !== false ? 'card' : s.type === 'image' && s.cutout ? 'image' : null;
+    if (k && s[k] && /^file:/.test(s[k])) jobs.push({ id: i + ':' + k, src: fileURLToPath(s[k]), model: s.model || model, bw: s.bw ?? (k !== 'image') , k, s });
+  });
+  if (jobs.length) {
+    try { const done = await cutouts(br, ROOT, jobs); for (const j of jobs) if (done.has(j.id)) j.s[j.k] = pathToFileURL(done.get(j.id)).href; }
+    catch (e) { r.errors.push('cutout: ' + e.message); }
+  }
+  const want = sp.scenes.filter(s => s.emoji);
+  if (want.length) {
+    let dir = null;
+    const find = () => { try { return path.join(path.dirname(require.resolve('@lobehub/fluent-emoji-3d/package.json')), 'assets'); } catch { return null; } };
+    dir = find();
+    if (!dir) { console.log('installing 3D emoji set (first time only, ~16 MB)…'); spawnSync(process.platform === 'win32' ? 'npm.cmd' : 'npm', ['install', '--no-save', '--no-audit', '--no-fund', '--no-update-notifier', '--loglevel=error', '@lobehub/fluent-emoji-3d@1.1.0'], { cwd: ROOT, stdio: 'inherit', shell: process.platform === 'win32' }); dir = find(); }
+    for (const s of want) {
+      const cps = [...String(s.emoji).trim()].map(ch => ch.codePointAt(0).toString(16).padStart(4, '0'));
+      const cand = [cps.join('-'), cps.filter(x => x !== 'fe0f').join('-')];
+      const hit = dir && cand.map(n => path.join(dir, n + '.webp')).find(f => fs.existsSync(f));
+      if (hit) s._emoji = pathToFileURL(hit).href; else r.warns.push(`emoji "${s.emoji}" not found in the 3D set${dir ? '' : ' (could not install @lobehub/fluent-emoji-3d)'} — skipped`);
+    }
+  }
 }
 async function browser() {
   const pw = need(['playwright-core', 'playwright'], `missing deps — run: cd "${ROOT}" && npm install`);
@@ -187,6 +213,7 @@ async function main() {
   const br = await browser();
   try {
     const draftR = cmd === 'render' && !!opt.draft;
+    await prepStudio(r, br);
     prepMedia(r, cmd === 'render' ? (draftR ? Math.min(15, r.spec.meta.fps) : r.spec.meta.fps) : 6, cmd === 'render' && !draftR ? 1280 : 640);
     if (cmd === 'lint') { const { info } = await stagePage(br, r.spec); process.exitCode = report(r, info) ? 0 : 1; return; }
 

@@ -3,11 +3,11 @@
 import { STYLES } from './audio.mjs';
 // effect vocabulary (the engine implements each one; names are validated here)
 export const ANIMS = { rise: 'words rise out of a blur (default)', pop: 'words pop with overshoot', stamp: 'words slam down from big', blur: 'line focuses in', mask: 'each word slides up out of a hidden line', chars: 'letters stagger in', wave: 'letters bounce in', split: 'letters fly in from both sides', type: 'typewriter', scramble: 'letters decode from random glyphs', glitch: 'RGB-split jitter then settle', highlight: 'rise + marker sweep behind *accent*', ink: 'each word turns from light grey to ink, no movement' };
-export const TRANS = { fade: 'fade up (default)', slide: 'push sideways', zoom: 'zoom through', blur: 'defocus', whip: 'fast whip-pan with motion blur', punch: 'zoom punch-in', circle: 'iris close / open', diagonal: 'slanted wipe', wipe: 'colour panel sweeps across', split: 'two panels close then open', flash: 'white flash on the cut', glitch: 'RGB slices', dip: 'frame darkens for 3 frames, then a hard cut', cut: 'hard cut' };
+export const TRANS = { fade: 'fade up (default)', slide: 'push sideways', zoom: 'zoom through', blur: 'defocus', whip: 'fast whip-pan with motion blur', punch: 'zoom punch-in', circle: 'iris close / open', diagonal: 'slanted wipe', wipe: 'colour panel sweeps across', split: 'two panels close then open', flash: 'white flash on the cut', glitch: 'RGB slices', dip: 'frame darkens for 3 frames, then a hard cut', flood: 'accent circle floods the frame, then lifts off', cut: 'hard cut' };
 export const FX = { grain: 'film grain', leak: 'warm light leak', vignette: 'dark edges', scan: 'scanlines', shake: 'handheld shake, kicks on the beat', rgb: 'colour split on headlines, kicks on the beat', shapes: 'floating geometric shapes' };
 export const ACCENTS = ['lift', 'punch', 'tilt', 'shake', 'jitter', 'glow', 'sweep', 'burst', 'rgb', 'flash'];
-export const BGS = ['glow', 'grid', 'dots', 'plain', 'stripes', 'halftone', 'aurora', 'mesh'];
-export const LOOKS = { clean: 'rise/mask/blur · fade/slide/zoom · glow — calm, corporate (default feel)', bold: 'pop/stamp/chars · punch/whip/flash · stripes + shapes + shake — short-form social energy', kinetic: 'mask/chars/stamp · whip/split/punch · plain + grain — typography-led', glitch: 'scramble/glitch/type · glitch/cut/whip · grid + scanlines + RGB — tech, AI, gaming (use sparingly)', cinematic: 'blur/ink/mask · fade/circle/dip · aurora + vignette + grain + light leak, slower — brand stories', editorial: 'mask/highlight/ink · diagonal/split/dip · halftone + grain — magazine, explainers', playful: 'wave/pop/split · circle/flash/punch · mesh + shapes — kids, lifestyle, fun' };
+export const BGS = ['swoosh', 'glow', 'grid', 'dots', 'plain', 'stripes', 'halftone', 'aurora', 'mesh'];
+export const LOOKS = { clean: 'rise/mask/blur · fade/slide/zoom · glow — calm, corporate (default feel)', bold: 'pop/stamp/chars · punch/whip/flash · stripes + shapes + shake — short-form social energy', kinetic: 'mask/chars/stamp · whip/split/punch · plain + grain — typography-led', glitch: 'scramble/glitch/type · glitch/cut/whip · grid + scanlines + RGB — tech, AI, gaming (use sparingly)', cinematic: 'blur/ink/mask · fade/circle/dip · aurora + vignette + grain + light leak, slower — brand stories', editorial: 'mask/highlight/ink · diagonal/split/dip · halftone + grain — magazine, explainers', playful: 'wave/pop/split · circle/flash/punch · mesh + shapes — kids, lifestyle, fun', studio: 'blur/mask/pop · flood/whip/fade · swoosh lines, motion blur, condensed type — editor-reel style with cutouts and cards (pair with theme: studio or your brand)' };
 export const SCENES = {
   hook: { d: 'Big opening/section headline, centered.', main: 'str', max: 14, f: { kicker: 'small label above', sub: 'one supporting line' }, ex: '- hook: "AI Agent *không phải* chatbot"\n  sub: Nó tự lập kế hoạch và hành động' },
   bullets: { d: 'Title + staggered numbered cards. Item "Label|detail" adds a muted second line.', main: 'list', items: [2, 5], f: { title: '', kicker: '' }, ex: '- bullets: [Hiểu mục tiêu, "Dùng tool|search, code, API", Tự kiểm tra]\n  title: Agent làm được gì' },
@@ -28,7 +28,9 @@ export const SCENES = {
   timeline: { d: 'Timeline: a line draws while 2–5 milestones "When|What" pop in order.', main: 'list', items: [2, 5], f: { title: '', kicker: '' }, ex: '- timeline: ["2024|Bắt đầu học AI", "2025|Ra mắt công cụ", "2026|Mở cộng đồng"]' },
   '3d': { d: '3D (three.js): card = your image on a floating, tilting slab; object = brand-coloured 3D shape behind a title; particles = 3D particle field that speeds up on the beat. Renders ~3x slower than other scenes — use 1–2 per video.', main: 'str', f: { image: 'image path (card)', shape: 'object: knot (default) | sphere | ring | cube', title: '', kicker: '', caption: '' }, ex: '- 3d: card\n  image: assets/product.jpg\n  title: Sản phẩm *thật*' },
   manim: { d: 'OPTIONAL, needs Manim installed: a Python file with a Manim Scene (math, function graphs, geometry) rendered and played like footage. Brand colours are in env vars MOGRAPH_BG/FG/AC/AC2. Only for what bars/stat/flow cannot show.', main: 'str', f: { scene: 'Scene class name (default: the first one)', title: '', kicker: '', caption: '', fill: 'true = full screen' }, ex: '- manim: charts/growth.py\n  scene: Growth\n  title: Tăng trưởng' },
-  image: { d: 'Framed image/screenshot with slow zoom. Path relative to the spec file.', main: 'str', f: { title: '', caption: '', kicker: '', fill: 'true = full-screen photo with the title over it' }, ex: '- image: assets/screenshot.png\n  caption: Giao diện thực tế' },
+  subject: { d: 'Cutout hero: the photo\'s background is removed automatically (cached), an accent shape grows behind, the big title sits BEHIND the subject. Best with a person or a single object. Title can be "small / BIG".', main: 'str', f: { title: 'big words behind the subject', kicker: '', sub: 'pill under the subject', shape: 'circle (default) | arch | card | none', bw: 'false = keep colour (default black & white)', model: 'fast (default) | quality | person' }, ex: '- subject: assets/me.jpg\n  title: "the / allrounder"\n  sub: Digital Marketer' },
+  card: { d: 'A pill grows into an accent card; the cutout photo rises inside it, the title overlaps its corner, an optional list grows below on the beat.', main: 'str', f: { title: '"small / BIG" works well', kicker: '', points: 'list of 2–5 short items', cutout: 'false = keep the photo background', bw: 'false = colour', model: 'fast | quality | person' }, ex: '- card: assets/me.jpg\n  title: "Lan / Anh"\n  points: [SEO, Ads, Content, AI Agent]' },
+  image: { d: 'Framed image/screenshot with slow zoom. Path relative to the spec file.', main: 'str', f: { title: '', caption: '', kicker: '', fill: 'true = full-screen photo with the title over it', cutout: 'true = remove the background', bw: 'true = black & white', model: 'fast | quality | person' }, ex: '- image: assets/screenshot.png\n  caption: Giao diện thực tế' },
   cta: { d: 'Closing call to action, centered.', main: 'str', max: 12, f: { sub: '', button: 'pill button label', handle: '@account / url' }, ex: '- cta: Follow để học *AI Agent* mỗi ngày\n  button: Follow\n  handle: "@kenh"' },
   profile: { d: 'Person card: avatar (initials or image) + name + typed quote.', main: 'str', f: { role: 'small label above the name', quote: 'typed out', avatar: 'image path (else initials)' }, ex: '- profile: Hưng Kescy\n  role: Diễn giả\n  quote: Cái gì máy làm tốt thì người đừng làm' },
   check: { d: 'Checklist that a cursor ticks one by one. Item "Label|detail". meta.cursor sets the cursor name tag.', main: 'list', items: [1, 5], f: { title: '', kicker: '' }, ex: '- check: ["Thế nào là 1 Skill tốt?", "6 bước giải quyết vấn đề|Nâng cao"]\n  title: Đi làm với AI' },
@@ -41,7 +43,7 @@ export const SCENES = {
 export const META = {
   size: '9:16 (default) | 16:9 | 1:1 | 4:5 | WxH',
   fps: '30 default',
-  theme: 'midnight (default) | paper | terminal | sunset | meadow | lanhmar, or {base, bg, fg, mut, ac, ac2, card, line, font}',
+  theme: 'midnight (default) | paper | terminal | sunset | meadow | lanhmar | studio, or {base, bg, fg, mut, ac, ac2, card, line, font}',
   bg: BGS.join(' | ') + ' (default from the look, else glow)',
   pace: 'reading-time multiplier, 1 default; 0.8 = faster cuts',
   brand: 'watermark text at the bottom, e.g. "@handle"',
@@ -54,6 +56,8 @@ export const META = {
   lufs: 'final loudness target, default -14 (social/streaming); -16 for podcasts-style voice',
   pulse: 'false = no beat accents at all',
   accents: 'beat hits, overrides the look: list of lift | punch | tilt | shake | jitter | glow | sweep | burst | rgb | flash, or off. One changes per bar; strong on beat 1, light on 2/4',
+  mblur: 'true/false: motion blur on moving elements (on in the studio look)',
+  cutout: 'background-removal model for subject/card: fast (default) | quality | person',
   intensity: 'background + pattern strength: low (default, calm behind content) | mid | high',
   max: 'target max seconds; lint warns when exceeded',
   style: 'slides (default: one scene per cut) | desk (scenes are window cards on one canvas; camera whip-pans between them)',
@@ -72,7 +76,7 @@ export const META = {
   capwords: 'max words per caption line, 7 default',
   cursor: 'name tag on the cursor in `check` scenes, e.g. "Bạn"',
 };
-const COMMON = ['dur', 'win', 'logo', 'voice', 'vo', 'tr', 'anim', 'lower'];
+const COMMON = ['dur', 'win', 'logo', 'voice', 'vo', 'tr', 'anim', 'lower', 'emoji'];
 const SIZES = { '9:16': [1080, 1920], '16:9': [1920, 1080], '1:1': [1080, 1080], '4:5': [1080, 1350] };
 const wc = s => String(s).split(/\s+/).filter(Boolean).length;
 
@@ -129,7 +133,7 @@ export function catalog(type) {
   if (type === 'fx' || type === 'effects') return 'TEXT ANIMATIONS (anim)\n' + Object.entries(ANIMS).map(([k, v]) => `  ${k.padEnd(9)} ${v}`).join('\n') + '\nTRANSITIONS (tr / meta.transition, slides style)\n' + Object.entries(TRANS).map(([k, v]) => `  ${k.padEnd(9)} ${v}`).join('\n') + '\nOVERLAYS (meta.fx)\n' + Object.entries(FX).map(([k, v]) => `  ${k.padEnd(9)} ${v}`).join('\n') + '\nBEAT ACCENTS (meta.accents; one per bar, strong on beat 1): ' + ACCENTS.join(', ') + '\nBACKGROUNDS (meta.bg; meta.intensity low|mid|high): ' + BGS.join(', ') + '\nANY SCENE: lower: "Name|Role" adds a lower-third.';
   if (type && SCENES[type]) {
     const d = SCENES[type];
-    return `${type} (${d.main}) — ${d.d}\nfields: ${Object.entries(d.f).map(([k, v]) => k + (v ? ` (${v})` : '')).join('; ') || '—'}; dur (seconds, optional — auto if omitted); anim / tr (override the look for this scene); lower ("Name|Role" lower-third); win (window title, desk style); logo (image, hook/cta/ticket); voice (narration text → speech + captions); vo (your recording of that line); tr (transition out of this scene)\n${d.ex}`;
+    return `${type} (${d.main}) — ${d.d}\nfields: ${Object.entries(d.f).map(([k, v]) => k + (v ? ` (${v})` : '')).join('; ') || '—'}; dur (seconds, optional — auto if omitted); emoji (a 3D emoji sticker, e.g. "🔥"); anim / tr (override the look for this scene); lower ("Name|Role" lower-third); win (window title, desk style); logo (image, hook/cta/ticket); voice (narration text → speech + captions); vo (your recording of that line); tr (transition out of this scene)\n${d.ex}`;
   }
   return 'SCENE TYPES (first key = type; `mograph catalog <type>` for fields + example)\n'
     + Object.entries(SCENES).map(([k, d]) => `  ${k.padEnd(8)} ${d.d}`).join('\n')
@@ -138,5 +142,5 @@ export function catalog(type) {
 }
 
 // base colours per theme, handed to optional external renderers (Manim)
-export const THEME_COLORS = { midnight: ['#0a0c16', '#f4f5fb', '#8b7cff', '#3ddbd9'], paper: ['#f5f2ea', '#16171d', '#e4572e', '#2563eb'], terminal: ['#07100c', '#e6f5ea', '#4ade80', '#facc15'], meadow: ['#3c8a4b', '#fdf9ec', '#f3e0ad', '#ffd9c7'], lanhmar: ['#F3F1FD', '#241F45', '#FF7A45', '#6A5CFF'], sunset: ['#160b1f', '#fff6ee', '#ff7a3d', '#b06cff'] };
+export const THEME_COLORS = { midnight: ['#0a0c16', '#f4f5fb', '#8b7cff', '#3ddbd9'], paper: ['#f5f2ea', '#16171d', '#e4572e', '#2563eb'], terminal: ['#07100c', '#e6f5ea', '#4ade80', '#facc15'], meadow: ['#3c8a4b', '#fdf9ec', '#f3e0ad', '#ffd9c7'], lanhmar: ['#F3F1FD', '#241F45', '#FF7A45', '#6A5CFF'], sunset: ['#160b1f', '#fff6ee', '#ff7a3d', '#b06cff'], studio: ['#F1F1F3', '#1A1A22', '#5B2A86', '#9A6BD1'] };
 export function themeColors(theme) { const t = typeof theme === 'object' && theme ? theme : {}, base = THEME_COLORS[typeof theme === 'string' ? theme : t.base] || THEME_COLORS.midnight; return { bg: t.bg || base[0], fg: t.fg || base[1], ac: t.ac || base[2], ac2: t.ac2 || base[3] }; }

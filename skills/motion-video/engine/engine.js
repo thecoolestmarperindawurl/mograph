@@ -509,6 +509,14 @@
       }
       return t;
     },
+    // A-roll: the real footage shows through; optional headline (top-left, numbered), card, emoji, marks on top
+    aroll(s, c) {
+      c.el.classList.add('ar-over');
+      let t = 0.15;
+      if (s.aroll) { const hd = c.h('div', 'ar-head', s.num != null ? `<span class="ar-num">${esc(s.num)}</span>` : ''); const h = c.h('div', 'big sm', '', hd); if (s.num != null) c.pop(hd.firstChild, 0.1, 0.45); t = c.words(h, s.aroll, 0.2, 0.06); }
+      if (s.image) { const fr = document.createElement('div'); fr.className = 'ar-card'; fr.innerHTML = `<img src="${esc(s.image)}">`; (c.el.closest('.mg-scene') || c.el).appendChild(fr); c.tl.add(fr, { opacity: [0, 1], scale: [0.6, 1], rotate: [8, 3], y: [1, 0] }, t, 0.55, 'back'); }
+      return { end: t + 0.5, read: 0 };
+    },
     // kinetic typography: one short phrase per beat-length slot, each with its own animation and layout
     kinetic(s, c) {
       c.el.classList.add('kin-host');
@@ -679,10 +687,38 @@
     };
   }
 
+
+  // hand-drawn annotations: "circle x y w h", "arrow x1 y1 x2 y2", "underline x y w", "text x y words" (all in % of the frame)
+  function buildMarks(list, host, tl, t0, W, H) {
+    const NS = 'http://www.w3.org/2000/svg', svg = document.createElementNS(NS, 'svg'); svg.setAttribute('viewBox', `0 0 ${W} ${H}`); svg.classList.add('marks'); svg.style.strokeWidth = (Math.min(W, H) * 0.011).toFixed(1);
+    host.appendChild(svg);
+    const X = v => (v * W) / 100, Y = v => (v * H) / 100, j = W * 0.004;
+    const line = (pts, seed) => 'M' + pts.map(([x, y], k) => `${(x + (noise(seed * 31 + 7, k) - 0.5) * j).toFixed(1)} ${(y + (noise(seed * 31 + 19, k) - 0.5) * j).toFixed(1)}`).join(' L');
+    const draw = (d, at, dur, front) => { const p = document.createElementNS(NS, 'path'); p.setAttribute('d', d); p.setAttribute('pathLength', '100'); front ? svg.appendChild(p) : svg.insertBefore(p, svg.firstChild); tl.fn(at, dur, q => { p.style.strokeDashoffset = 100 - 100 * q; }, 'out'); };
+    list.forEach((m, i) => {
+      const [kind, ...a] = String(m).trim().split(/\s+/), n = a.map(v => parseFloat(v)), at = t0 + i * 0.45;
+      if (kind === 'text') {
+        const d = document.createElement('div'); d.className = 'mark-text'; d.style.left = n[0] + '%'; d.style.top = n[1] + '%'; d.textContent = a.slice(2).join(' '); host.appendChild(d);
+        tl.add(d, { opacity: [0, 1], scale: [0.6, 1], rotate: [-6, -3] }, at, 0.35, 'back'); return;
+      }
+      if (kind === 'circle') { const cx = X(n[0] + n[2] / 2), cy = Y(n[1] + n[3] / 2), rx = X(n[2]) * 0.55, ry = Y(n[3]) * 0.6; draw(line(Array.from({ length: 40 }, (_, k) => { const q = -0.7 + (k / 39) * 7.1; return [cx + Math.cos(q) * rx * (1 + 0.05 * q / 7), cy + Math.sin(q) * ry]; }), i), at, 0.5); }
+      else if (kind === 'underline') { const x = X(n[0]), y = Y(n[1]), w = X(n[2]); draw(line(Array.from({ length: 14 }, (_, k) => [x + (w * k) / 13, y + Math.sin(k * 0.8) * W * 0.003 + (k / 13) * W * 0.006]), i), at, 0.35); }
+      else if (kind === 'arrow') {
+        const x1 = X(n[0]), y1 = Y(n[1]), x2 = X(n[2]), y2 = Y(n[3]), mx = (x1 + x2) / 2 + (y2 - y1) * 0.22, my = (y1 + y2) / 2 - (x2 - x1) * 0.22;
+        const pts = Array.from({ length: 18 }, (_, k) => { const q = k / 17; return [(1 - q) ** 2 * x1 + 2 * (1 - q) * q * mx + q * q * x2, (1 - q) ** 2 * y1 + 2 * (1 - q) * q * my + q * q * y2]; });
+        draw(line(pts, i), at, 0.38);
+        const [px, py] = pts[pts.length - 3], ang = Math.atan2(y2 - py, x2 - px), L = W * 0.045;
+        draw(`M${(x2 - L * Math.cos(ang - 0.45)).toFixed(1)} ${(y2 - L * Math.sin(ang - 0.45)).toFixed(1)} L${x2.toFixed(1)} ${y2.toFixed(1)} L${(x2 - L * Math.cos(ang + 0.45)).toFixed(1)} ${(y2 - L * Math.sin(ang + 0.45)).toFixed(1)}`, at + 0.36, 0.14, true);
+      }
+    });
+  }
+
   let S = null;
   const WIN = new Set(['bullets', 'flow', 'loop', 'compare', 'chat', 'bars', 'image', 'clip', 'manim', 'profile', 'check', 'clock', '3d']);
   const LEAD = 0.55, lerp = (a, b, p) => a + (b - a) * p;
+  let specRef = null;
   async function init(spec) {
+    specRef = spec;
     if (spec.scenes.some(x => x.type === '3d') && !window.THREE) await new Promise((ok, no) => { const sc = document.createElement('script'); sc.src = 'vendor/three.min.js'; sc.onload = ok; sc.onerror = () => no(new Error('three.js failed to load')); document.head.appendChild(sc); });
     spec.scenes.forEach((x, i) => { x._i = i; });
     const m = spec.meta, W = m.w, H = m.h, portrait = H > W * 1.1, desk = m.style === 'desk', SP = W * 1.14, SPY = H * 1.12;
@@ -734,6 +770,11 @@
       const kinds = ['<i class="sc"></i>', '<i class="sr"></i>', '<svg viewBox="0 0 10 10"><path d="M5 1L9 9H1z"/></svg>', '<svg viewBox="0 0 10 10"><path d="M5 1v8M1 5h8"/></svg>', '<svg viewBox="0 0 20 8"><path d="M1 4q2.5-4 5 0t5 0 5 0 3 0"/></svg>'];
       shapes = Array.from({ length: 7 }, (_, k) => { const e = document.createElement('div'); e.className = 'shp c' + (k % 3); e.innerHTML = kinds[k % kinds.length]; const z = 0.45 + R() * 0.8; e.style.width = z + 'em'; e.style.height = z + 'em'; sh.appendChild(e); return { e, x: k % 2 ? 0.84 + R() * 0.13 : 0.02 + R() * 0.13, y: R(), r: R() * 360, v: 0.3 + R(), ph: R() * 6.28 }; });
     }
+    let AR = null;
+    if (m._aroll) {
+      const box = document.createElement('div'); box.className = 'mg-aroll'; box.innerHTML = '<img>'; stage.appendChild(box);
+      AR = { box, img: box.firstChild, F: m._aroll.frames, fps: m._aroll.fps };
+    }
     let layer = null;
     if (!desk) { layer = document.createElement('div'); layer.className = 'mg-layer'; stage.appendChild(layer); }
 
@@ -760,6 +801,7 @@
       } else cbox.appendChild(inner);
       el.appendChild(cbox);
       const tl = new TL(), r = B[s.type](s, ctx(inner, tl, portrait, m, s));
+      if (s.marks) buildMarks([].concat(s.marks), el, tl, 0.4, W, H);
       if (s._emoji) {
         const st = document.createElement('img'); st.className = 'sticker'; st.src = s._emoji;
         const host = inner.querySelector('.subj-box,.mcard') || inner; host.appendChild(st);
@@ -804,7 +846,7 @@
       if (acc.includes('rgb')) stage.classList.add('fx-rgb');
     }
     let cap = null;
-    if (m.captions !== false && scenes.some(x => x.vo && x.vo.cues && x.vo.cues.length)) { cap = document.createElement('div'); cap.className = 'mg-cap'; stage.appendChild(cap); }
+    if (m.captions !== false && (m._gcap || scenes.some(x => x.vo && x.vo.cues && x.vo.cues.length))) { cap = document.createElement('div'); cap.className = 'mg-cap'; stage.appendChild(cap); }
     const ov = {};
     if (!desk) for (const [k, html] of [['wipe', '<i></i><b></b>'], ['flash', ''], ['split', '<i></i><b></b>'], ['flood', '<i></i>']]) if (scenes.some(x => x.tr === k)) { const e = document.createElement('div'); e.className = 'mg-' + k; e.innerHTML = html; stage.appendChild(e); ov[k] = e; }
     let prog = null;
@@ -816,7 +858,7 @@
 
     document.querySelectorAll('.mosaic').forEach(g => { const im = [...g.querySelectorAll('img')]; if (im.filter(i => i.naturalHeight > i.naturalWidth * 1.15).length * 2 > im.length) g.classList.add('tall'); });
     // auto-fit: shrink a scene's type scale until its content fits the safe area
-    const over = sc => (sc.frame || sc.inner).getBoundingClientRect().height > sc.cbox.clientHeight + 1 || sc.inner.scrollWidth > sc.inner.clientWidth + 1 || [...sc.inner.querySelectorAll('h1,h2,.tkl')].some(e => e.scrollWidth > e.clientWidth + 1);
+    const over = sc => (sc.frame || sc.inner).getBoundingClientRect().height > sc.cbox.clientHeight + 1 || sc.inner.scrollWidth > sc.inner.clientWidth + 1 || [...sc.inner.querySelectorAll('h1,h2,.tkl')].some(e => e.scrollWidth > e.clientWidth + 4);
     let start = 0;
     const bt = m._beat || null;
     const info = scenes.map((sc, i) => {
@@ -883,7 +925,7 @@
         wins.forEach((x, k) => { x.gone = true; sc.tl.add(x.slot, { x: [0, (mid - x.cam.x) / U], y: [0, (my - x.cam.y) / U], scale: [1, 0.5], opacity: [1, 0] }, 0.75 + k * 0.06, 0.5, 'in'); });
       });
     }
-    S = { acc, hit, accSeed: Math.floor(R() * 7), scenes, total: start, blobs, prog, W, H, desk, world, blur, mascot, marq, cap, ov, fx, fxl, grainT, shapes, bgAnim, layer, stage, mw: marq ? marq.querySelector('span').getBoundingClientRect().width : 0, beat: bt && m.pulse !== false ? bt : null, bg };
+    S = { AR, gcap: m._gcap || null, acc, hit, accSeed: Math.floor(R() * 7), scenes, total: start, blobs, prog, W, H, desk, world, blur, mascot, marq, cap, ov, fx, fxl, grainT, shapes, bgAnim, layer, stage, mw: marq ? marq.querySelector('span').getBoundingClientRect().width : 0, beat: bt && m.pulse !== false ? bt : null, bg };
     await seek(0);
     return { total: +start.toFixed(2), w: W, h: H, fps: m.fps, scenes: info, beat: bt, load: +(1 + ({ grid: 0.1, dots: 0.1, stripes: 0.6, halftone: 0.3, aurora: 0.3, mesh: 0.1 }[bgk] || 0) + [...fx].reduce((a, f) => a + ({ grain: 0.55, leak: 0.25, scan: 0.3, vignette: 0.1, rgb: 0.1, shapes: 0.2, shake: 0.1 }[f] || 0), 0)).toFixed(2) };
   }
@@ -919,6 +961,14 @@
     if (blobs[1]) blobs[1].style.transform = `translate(${(0.35 + 0.12 * Math.cos(t * 0.28)) * W}px,${(0.55 + 0.07 * Math.sin(t * 0.33)) * H}px)`;
     if (S.marq) S.marq.firstChild.style.transform = `translateX(${-((t * 2.4 * U) % S.mw)}px)`;
     if (prog) prog.firstChild.style.width = Math.min(100, (t / total) * 100) + '%';
+    if (S.AR) {
+      let ai = scenes.findIndex(sc => t >= sc.start && t < sc.start + sc.dur); if (ai < 0) ai = scenes.length - 1;
+      const sp = specRef.scenes[ai], mode = sp.type === 'aroll' ? 'full' : sp.pip ? 'pip' : 'off', k = Math.max(0, Math.min(S.AR.F.length - 1, Math.floor(t * S.AR.fps)));
+      S.AR.box.className = 'mg-aroll ' + mode;
+      if (mode !== 'off' && S.AR.img._k !== k) { S.AR.img._k = k; S.AR.img.src = S.AR.F[k]; PEND.push(S.AR.img.decode().catch(() => {})); }
+      const z = sp.zoom ? 1 + (sp.zoom - 1) * ease.out5(clamp((t - scenes[ai].start) / 0.35)) : 1;
+      S.AR.img.style.transform = mode === 'full' && z !== 1 ? `scale(${z.toFixed(4)})` : '';
+    }
     if (S.cap) captions(t);
     if (S.hit) accents(t);
     // overlay transitions centred on the cut
@@ -987,9 +1037,9 @@
 
   // captions: phrase cues from the voiceover, current word highlighted (word times are spread by length inside each cue)
   function captions(t) {
-    const sc = S.scenes.find(x => x.vo && t >= x.start && t < x.start + x.dur);
     let cue = null, lt = 0;
-    if (sc) { lt = t - sc.start - sc.lead - sc.vo.at; cue = sc.vo.cues.find(c => lt >= c.a - 0.05 && lt < c.b + 0.25); }
+    if (S.gcap) { lt = t; cue = S.gcap.find(c => t >= c.a - 0.03 && t < c.b + 0.1); }
+    else { const sc = S.scenes.find(x => x.vo && t >= x.start && t < x.start + x.dur); if (sc) { lt = t - sc.start - sc.lead - sc.vo.at; cue = sc.vo.cues.find(c => lt >= c.a - 0.05 && lt < c.b + 0.25); } }
     if (!cue) { S.cap.style.opacity = 0; return; }
     if (S.cap._c !== cue) {
       S.cap._c = cue;

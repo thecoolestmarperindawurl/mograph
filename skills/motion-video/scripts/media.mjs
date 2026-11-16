@@ -135,11 +135,12 @@ export function prepVoices(ff, spec, dir) {
 }
 
 /** Build the final soundtrack: music ducked under voice, voice lines and footage sound placed at their scene times. */
-export function mixAudio(ff, { music, info, scenes, volume = 0.8, out, lufs = -14 }) {
+export function mixAudio(ff, { music, info, scenes, volume = 0.8, out, lufs = -14, aroll = null }) {
   const ins = [], f = [], total = info.total.toFixed(3);
   let n = 0;
   const voIdx = [], clipIdx = [];
   if (music) { ins.push('-i', music); n++; }
+  if (aroll) { ins.push('-i', aroll); voIdx.push([n++, 0]); }
   info.scenes.forEach((si, k) => {
     const s = scenes[k];
     if (s._vo && si.voAt != null) { ins.push('-i', s._vo.file); voIdx.push([n++, si.voAt]); }
@@ -165,7 +166,7 @@ export function mixAudio(ff, { music, info, scenes, volume = 0.8, out, lufs = -1
 /** Write an .srt caption file from the voice cues (absolute times). */
 export function writeSrt(info, scenes, out) {
   const ts = t => { const ms = Math.max(0, Math.round(t * 1000)), h = Math.floor(ms / 3600000), m = Math.floor(ms / 60000) % 60, sec = Math.floor(ms / 1000) % 60; return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')},${String(ms % 1000).padStart(3, '0')}`; };
-  const rows = [];
+  const rows = (info.gcap || []).map(c => [c.a, c.b, c.text]);
   info.scenes.forEach((si, k) => { const v = scenes[k]._vo; if (!v || si.voAt == null) return; for (const c of v.cues) rows.push([si.voAt + c.a, si.voAt + c.b + 0.15, c.text]); });
   if (!rows.length) return null;
   rows.sort((x, y) => x[0] - y[0]); rows.forEach((r, i) => { if (rows[i + 1] && r[1] > rows[i + 1][0] - 0.02) r[1] = rows[i + 1][0] - 0.02; });
@@ -220,4 +221,129 @@ export function ensurePkg(name, version, note) {
   const r = spawnSync(process.platform === 'win32' ? 'npm.cmd' : 'npm', ['install', '--no-audit', '--no-fund', '--no-update-notifier', '--loglevel=error', `${name}@${version}`], { cwd: dir, stdio: ['ignore', 'ignore', 'inherit'], shell: process.platform === 'win32' });
   if (r.status !== 0 || !fs.existsSync(path.join(pkg, 'package.json'))) throw new Error(`could not install ${name}@${version}`);
   return pkg;
+}
+
+// ---------- A-roll: real footage + real voice as the timeline ----------
+const nrm = t => String(t).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/g, 'd').replace(/[^\p{L}\p{N}\s]/gu, ' ').replace(/\s+/g, ' ').trim();
+const tsec = x => { const m = String(x).trim().replace(',', '.').match(/(?:(\d+):)?(\d+):([\d.]+)/); return m ? (+(m[1] || 0)) * 3600 + +m[2] * 60 + +m[3] : NaN; };
+/** Parse .srt / .vtt / whisper-style .json into [{a, b, text}] (absolute seconds). */
+export function readTranscript(file) {
+  const txt = fs.readFileSync(file, 'utf8');
+  if (/\.json$/i.test(file)) {
+    const j = JSON.parse(txt), segs = j.segments || j;
+    const words = segs.flatMap(s => s.words ? s.words.map(w => ({ a: +w.start, b: +w.end, text: String(w.word).trim() })) : [{ a: +s.start, b: +s.end, text: String(s.text).trim() }]);
+    return words.filter(w => w.text);
+  }
+  const out = [];
+  for (const blk of txt.replace(/\r/g, '').split(/\n\s*\n/)) {
+    const ln = blk.split('\n'), i = ln.findIndex(l => l.includes('-->'));
+    if (i < 0) continue;
+    const [a, b] = ln[i].split('-->').map(x => tsec(x.split(/\s+/).filter(Boolean)[0] || x));
+    const text = ln.slice(i + 1).join(' ').replace(/<[^>]+>/g, '').trim();
+    if (text && a >= 0 && b > a) out.push({ a, b, text });
+  }
+  return out;
+}
+// spread a segment's time over its words (proportional to length) → word list
+const toWords = segs => segs.flatMap(s => { const w = s.text.split(/\s+/).filter(Boolean); if (w.length === 1) return [s]; const L = w.reduce((n, x) => n + x.length + 1, 0); let acc = 0; return w.map(x => { const a = s.a + (acc / L) * (s.b - s.a); acc += x.length + 1; return { a, b: s.a + (acc / L) * (s.b - s.a), text: x }; }); });
+
+/**
+ * meta.aroll: extract the footage frames, read/align the transcript, resolve each scene's `at:` (seconds or a spoken
+ * phrase) into fixed durations so cuts follow the speech. Sets meta._aroll {frames, fps, len}, meta._gcap (caption cues).
+ */
+export function prepAroll(ff, spec, fps, maxW, notes) {
+  const m = spec.meta, src = { clip: m.aroll, max: 3600 };
+  prepClip(ff, src, fps, maxW);
+  m._aroll = { frames: src._frames, fps, len: src._len, audio: src._hasAudio };
+  if (!src._hasAudio) notes.push('aroll has no sound track — add meta.audio or voice lines');
+  let words = null;
+  if (m.transcript) {
+    if (/\.txt$/i.test(m.transcript)) {
+      // plain script: align its phrases to the pauses in the real speech (approximate; an .srt is exact)
+      const wav = path.join(CACHE, 'clips', hash(m.aroll, fs.statSync(m.aroll).size, 'wav') + '.wav');
+      if (!fs.existsSync(wav)) run(ff, ['-v', 'error', '-y', '-i', m.aroll, '-vn', '-ac', '1', '-ar', '16000', wav]);
+      const e = run(ff, ['-hide_banner', '-i', wav, '-af', 'silencedetect=noise=-32dB:d=0.25', '-f', 'null', '-']).stderr.toString();
+      const st = e.match(/silence_end: ([\d.]+)/), en = [...e.matchAll(/silence_start: ([\d.]+)/g)].pop();
+      const a0 = st && +e.match(/silence_start: ([\d.]+)/)[1] < 0.05 ? +st[1] : 0, a1 = en && +en[1] > src._len - 2 ? +en[1] : src._len;
+      const list = phrases(fs.readFileSync(m.transcript, 'utf8').replace(/\s+/g, ' ').trim(), 4);
+      words = toWords(cues(ff, wav, a1 - a0, list).map(c => ({ a: c.a + a0, b: c.b + a0, text: c.text })));
+      notes.push(`transcript: script aligned to speech pauses (approximate) — export an .srt from CapCut or run \`mograph transcribe\` for exact timing`);
+    } else words = toWords(readTranscript(m.transcript));
+    if (!words.length) notes.push('transcript: no lines found');
+  }
+  // captions: group words into short lines (capwords), break on pauses and sentence ends
+  if (words && words.length && m.captions !== false) {
+    const max = +m.capwords || 4, cap = [];
+    let cur = null;
+    for (const w of words) {
+      if (cur && (cur.n >= max || w.a - cur.b > 0.45 || /[.!?…]$/.test(cur.text))) { cap.push(cur); cur = null; }
+      if (!cur) cur = { a: w.a, b: w.b, text: w.text, n: 1 }; else { cur.text += ' ' + w.text; cur.b = w.b; cur.n++; }
+    }
+    if (cur) cap.push(cur);
+    cap.forEach((c, i) => { if (cap[i + 1]) c.b = Math.min(c.b + 0.25, cap[i + 1].a); });
+    m._gcap = cap.map(({ a, b, text }) => ({ a: +a.toFixed(3), b: +b.toFixed(3), text }));
+  }
+  // timeline: scene starts from `at:`; durations fill the gaps; the video is as long as the footage
+  const nw = words ? words.map(w => nrm(w.text)) : [];
+  const findPhrase = (ph, from) => {
+    const q = nrm(ph).split(' ');
+    for (let i = 0; i + q.length <= nw.length; i++) if (words[i].a >= from - 0.05 && q.every((x, k) => nw[i + k] === x || (k === q.length - 1 && nw[i + k].startsWith(x)))) return words[i].a;
+    return null;
+  };
+  const L = src._len, starts = [];
+  let prev = 0;
+  spec.scenes.forEach((s, i) => {
+    let t = null;
+    if (i === 0) t = 0;
+    else if (typeof s.at === 'number' || (s.at != null && !isNaN(+s.at))) t = +s.at;
+    else if (s.at != null) { if (!words) throw new Error(`s${i + 1}: at "${s.at}" is a phrase — needs meta.transcript (.srt/.vtt/.json/.txt)`); t = findPhrase(s.at, prev); if (t == null) throw new Error(`s${i + 1}: phrase "${s.at}" not found in the transcript after ${prev.toFixed(1)}s`); t = Math.max(prev + 0.5, t - 0.08); }
+    starts.push(t); if (t != null) prev = t;
+  });
+  // scenes without `at`: use their dur after the previous start, else share the gap evenly
+  for (let i = 1; i < starts.length; i++) if (starts[i] == null) {
+    let j = i; while (j < starts.length && starts[j] == null) j++;
+    const a = starts[i - 1], b = j < starts.length ? starts[j] : L;
+    for (let k = i; k < j; k++) starts[k] = spec.scenes[k - 1].dur && k === i ? a + +spec.scenes[k - 1].dur : a + ((b - a) * (k - i + 1)) / (j - i + 1);
+  }
+  for (let i = 0; i < starts.length; i++) {
+    const end = i + 1 < starts.length ? starts[i + 1] : L, d = end - starts[i];
+    if (!(d >= 0.4)) throw new Error(`s${i + 1}: starts at ${starts[i].toFixed(2)}s but the next cut is at ${end.toFixed(2)}s — check at: order`);
+    spec.scenes[i].dur = Math.round(d * 1000) / 1000; spec.scenes[i]._at = starts[i];
+  }
+  return m._aroll;
+}
+
+/** Speech-to-text with word timestamps via faster-whisper (pip install faster-whisper; model downloads once from Hugging Face). */
+export function transcribe(ff, file, { lang, model = 'small', out }) {
+  const wav = path.join(CACHE, 'clips', hash(file, fs.statSync(file).size, 'wav') + '.wav');
+  fs.mkdirSync(path.dirname(wav), { recursive: true });
+  if (!fs.existsSync(wav)) { const r = run(ff, ['-v', 'error', '-y', '-i', file, '-vn', '-ac', '1', '-ar', '16000', wav]); if (r.status) throw new Error('cannot read audio of ' + file); }
+  const py = `import json,sys
+from faster_whisper import WhisperModel
+m=WhisperModel(sys.argv[2],device="auto",compute_type="int8")
+segs,_=m.transcribe(sys.argv[1],language=(sys.argv[3] or None),word_timestamps=True,vad_filter=True)
+json.dump({"segments":[{"start":s.start,"end":s.end,"text":s.text,"words":[{"start":w.start,"end":w.end,"word":w.word} for w in s.words]} for s in segs]},open(sys.argv[4],"w",encoding="utf8"),ensure_ascii=False)`;
+  const r = run(PY, ['-c', py, wav, model, lang || '', out], { stdio: ['ignore', 'inherit', 'pipe'] });
+  if (r.status !== 0) {
+    const err = (r.stderr || '').toString();
+    if (/No module named/.test(err)) throw new Error('faster-whisper is not installed: `pip install faster-whisper` — or export subtitles (.srt) from CapCut/Premiere/YouTube and use that as meta.transcript');
+    throw new Error('transcribe failed: ' + err.split('\n').filter(Boolean).slice(-2).join(' '));
+  }
+  return readTranscript(out).length;
+}
+
+/** Jump cut: drop pauses longer than `gap` seconds from a talking video (keeps `pad` s of air around speech). */
+export function jumpcut(ff, file, out, { gap = 0.45, pad = 0.12, noise = -32 }) {
+  const info = probe(ff, file);
+  const e = run(ff, ['-hide_banner', '-i', file, '-vn', '-af', `silencedetect=noise=${noise}dB:d=${gap}`, '-f', 'null', '-']).stderr.toString();
+  const sil = [], re = /silence_start: ([\d.]+)[\s\S]*?silence_end: ([\d.]+)/g;
+  let m; while ((m = re.exec(e))) sil.push([+m[1] + pad, +m[2] - pad]);
+  const keep = []; let t = 0;
+  for (const [a, b] of sil) { if (b - a < 0.05) continue; if (a > t + 0.05) keep.push([t, a]); t = b; }
+  if (info.dur > t + 0.05) keep.push([t, info.dur]);
+  if (!sil.length) { fs.copyFileSync(file, out); return { cuts: 0, before: info.dur, after: info.dur }; }
+  const sel = keep.map(([a, b]) => `between(t,${a.toFixed(3)},${b.toFixed(3)})`).join('+');
+  const r = run(ff, ['-v', 'error', '-y', '-i', file, '-vf', `select='${sel}',setpts=N/FRAME_RATE/TB`, '-af', `aselect='${sel}',asetpts=N/SR/TB`, '-c:v', 'libx264', '-crf', '18', '-preset', 'medium', '-c:a', 'aac', '-b:a', '192k', out]);
+  if (r.status) throw new Error('jumpcut failed: ' + r.stderr.toString().split('\n')[0]);
+  return { cuts: keep.length - 1, before: info.dur, after: keep.reduce((n, [a, b]) => n + b - a, 0) };
 }

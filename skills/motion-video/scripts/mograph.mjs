@@ -9,7 +9,7 @@ import { createRequire } from 'node:module';
 import { normalize, catalog, themeColors } from './schema.mjs';
 import { STYLES, synth, detectBeat } from './audio.mjs';
 import { cutouts } from './cutout.mjs';
-import { probe, prepClip, prepVoices, mixAudio, ttsEngines, writeSrt, extras, prepManim, manimCmd, ensurePkg, CACHE } from './media.mjs';
+import { probe, prepClip, prepVoices, mixAudio, ttsEngines, writeSrt, extras, prepManim, manimCmd, ensurePkg, CACHE, prepAroll, transcribe, jumpcut } from './media.mjs';
 
 const require = createRequire(import.meta.url);
 // a reader that stops early (`| head`) must not crash the run
@@ -58,6 +58,8 @@ function load(file) {
     }
     for (const s of r.spec.scenes) for (const k of s.type === 'clip' ? ['clip', 'vo'] : s.type === 'manim' ? ['manim', 'vo'] : ['vo']) if (s[k]) { const p = path.resolve(dir, s[k]); if (!fs.existsSync(p)) r.errors.push(`file not found: ${s[k]}`); else s[k] = p; }
     res(r.spec.meta, 'mascot');
+    for (const k of ['aroll', 'transcript']) if (r.spec.meta[k]) { r.spec.meta[k] = path.resolve(dir, r.spec.meta[k]); if (!fs.existsSync(r.spec.meta[k])) r.errors.push(`${k} not found: ${r.spec.meta[k]}`); }
+    for (const s of r.spec.scenes) if (s.type === 'aroll' && s.image) res(s, 'image');
     if (r.spec.meta.audio) { r.spec.meta.audio = path.resolve(dir, r.spec.meta.audio); if (!fs.existsSync(r.spec.meta.audio)) r.errors.push(`audio not found: ${r.spec.meta.audio}`); }
   }
   return { ...r, txt, dir };
@@ -78,6 +80,7 @@ function prepMedia(r, fps, maxW) {
   const ff = ffbin(), sp = r.spec, notes = [];
   for (const s of sp.scenes) if (s.type === 'manim') try { const full = !!s.fill; prepManim(ff, s, { w: full ? sp.meta.w : 1280, h: full ? sp.meta.h : 720, fps, colors: themeColors(sp.meta.theme) }); } catch (e) { r.errors.push(e.message); }
   for (const s of sp.scenes) if (s.type === 'clip' || (s.type === 'device' && s.clip) || (s.type === 'manim' && s.clip)) try { prepClip(ff, s, fps, maxW); } catch (e) { r.errors.push(e.message); }
+  if (sp.meta.aroll && !r.errors.length) try { prepAroll(ff, sp, fps, maxW, notes); } catch (e) { r.errors.push(e.message); }
   try { const v = prepVoices(ff, sp, r.dir); if (v) { r.voice = v; notes.push(...v.notes); } } catch (e) { r.errors.push(e.message); }
   r.warns.push(...notes);
 }
@@ -136,13 +139,14 @@ function report(r, info) {
       if (s.fixed && s.dur < s.need) out.push(`WARN s${s.i} ${s.type}: dur ${s.dur}s is shorter than its animation (${s.need}s)`);
       if (s.imgErr) out.push(`ERR  s${s.i}: image failed to load`);
     }
+    if (m._aroll) out.push(`🎬 aroll ${m._aroll.len.toFixed(1)}s${m._aroll.audio ? ' with voice' : ' (no sound)'} · cuts at ${r.spec.scenes.map(x => (x._at ?? 0).toFixed(1)).join(' ')}s · captions ${m._gcap ? m._gcap.length + ' lines from transcript' : 'off (add meta.transcript)'}`);
     if (r.voice) { const sc = r.spec.scenes.filter(x => x._vo); const snap = sc.reduce((a, x) => a + (x._vo.cues[0]?.snapped || 0), 0) / sc.length; out.push(`🎙 ${r.voice.engine} · ${sc.length} voice line(s) · ${sc.reduce((a, x) => a + x._vo.dur, 0).toFixed(1)}s speech · captions ${m.captions === false ? 'off' : `on, ${Math.round(snap * 100)}% of phrase breaks matched to pauses`}`); }
     if (info.beat) out.push(`♪ ${m.music || 'audio'} ${(60 / info.beat.p).toFixed(1)} bpm · cuts every ${info.beat.n} beat(s) = ${(info.beat.p * info.beat.n).toFixed(2)}s${info.beat.conf != null ? ` · detection confidence ${info.beat.conf}${info.beat.conf < 0.15 ? ' (LOW — check by ear or set meta.bpm)' : ''}${info.beat.alt && info.beat.alt.length ? ` · could also be ${info.beat.alt.join(' or ')} bpm — if cuts feel rushed or slow, set meta.bpm` : ''}` : ''}`);
     const clips = r.spec.scenes.some(x => x._frames), est = (fps, k) => Math.round(info.total * fps * k * (info.load || 1) * (clips ? 1.6 : 1) * Math.max(0.35, (info.w * info.h) / 2073600) * (4 / Math.max(1, Math.min(4, os.cpus().length))) + 8);
     out.push(`⏱ render ≈ ${est(m.fps, 0.045)}s full · ≈ ${est(Math.min(15, m.fps), 0.03)}s --draft on this machine — if over ~100s run it in the background (or a 10-min timeout) and wait for it to finish; do not poll`);
     if (m.max && info.total > m.max) out.push(`WARN total ${info.total}s exceeds meta.max ${m.max}s — cut scenes or set pace < 1`);
   }
-  for (const w of r.warns) out.push('WARN ' + w);
+  for (const w of new Set(r.warns)) out.push('WARN ' + w);
   const bad = out.some(l => l.startsWith('ERR'));
   if (info) {
     out.unshift(`${bad ? 'FAIL' : 'OK'} ${info.scenes.length} scenes · ${info.total}s · ${info.w}x${info.h}@${info.fps} · spec ≈${tok(Math.ceil(r.txt.length / 3.6))} tokens`,
@@ -159,7 +163,7 @@ async function assets(dir) {
     const pr = probe(ffbin(), p), v = pr.w ? { width: pr.w, height: pr.h } : null, isA = /\.(mp3|wav|m4a|aac|ogg)$/i.test(f), isV = /\.(mp4|mov|webm)$/i.test(f);
     let use;
     if (isA) use = `meta.audio (${pr.dur.toFixed(0)}s) — run \`beat\` to check BPM · or \`vo:\` for a recorded voice line`;
-    else if (isV) use = `\`clip\` scene (${pr.dur.toFixed(1)}s${pr.audio ? ', has sound' : ''}) — trim with from/to; \`fill: true\` for full-screen footage`;
+    else if (isV) use = pr.audio && pr.dur > 15 ? `talking/voiced footage (${pr.dur.toFixed(0)}s, has sound) → meta.aroll (the timeline) + \`transcribe\` for captions · or a \`clip\` scene` : `\`clip\` scene (${pr.dur.toFixed(1)}s${pr.audio ? ', has sound' : ''}) — trim with from/to; \`fill: true\` for full-screen footage`;
     else if (/\.svg$/i.test(f) || !v) use = 'vector: logo / mascot';
     else {
       const r = v.width / v.height, alpha = pr.alpha;
@@ -202,9 +206,20 @@ async function main() {
   }
   if (cmd === 'beat') { const d = detectBeat(pos[0], ffbin()); return console.log(`${d.bpm} bpm · first beat at ${d.offset}s · confidence ${d.conf}${d.conf < 0.15 ? ' (LOW)' : ''}${d.alt.length ? ` · could also be ${d.alt.join(' or ')} bpm (other readings of the same rhythm)` : ''}`); }
   if (cmd === 'assets') return assets(pos[0] || '.');
+  if (cmd === 'transcribe') {
+    if (!pos[0]) die('usage: mograph transcribe <video|audio> [--lang vi] [--model small] [-o words.json]');
+    const o = opt.o || pos[0].replace(/\.[^.]+$/, '') + '.words.json';
+    try { const n = transcribe(ffbin(), pos[0], { lang: opt.lang, model: opt.model || 'small', out: o }); return console.log(`transcript → ${o} · ${n} words with timestamps · use as meta.transcript (check spelling of names before rendering)`); } catch (e) { die(e.message); }
+  }
+  if (cmd === 'jumpcut') {
+    if (!pos[0]) die('usage: mograph jumpcut <talk.mp4> [--gap 0.45] [-o talk.cut.mp4]');
+    const o = opt.o || pos[0].replace(/\.[^.]+$/, '') + '.cut.mp4';
+    const r = jumpcut(ffbin(), pos[0], o, { gap: +opt.gap || 0.45 });
+    return console.log(`jump cut → ${o} · ${r.cuts} pauses removed · ${r.before.toFixed(1)}s → ${r.after.toFixed(1)}s`);
+  }
   if (cmd === 'doctor') return doctor();
   if (!['lint', 'sheet', 'render', 'remix'].includes(cmd)) {
-    return console.log('mograph <command> <spec.yaml>\n  catalog [type]                 scene types / fields (read on demand)\n  lint <spec>                    validate + measure text fit + timing (text only, no images)\n  sheet <spec> [--scenes 2,5-6] [--frames 3] [-o sheet.jpg]   contact sheet for visual QA\n  doctor                         check node, browser, ffmpeg, voice engines (prints install hints)\n  assets <dir> [--sheet]         list images/audio with size + how to use each (text; --sheet adds one thumbnail image)\n  music --style upbeat --dur 40 -o track.wav   write a built-in track · beat <audio>   detect BPM of your own file\n  remix <spec> [--looks bold,kinetic,editorial] [--seeds 1,2] [--scenes 1-4] [-o f.jpg]   one image comparing looks/seeds (rows) across scenes\n  render <spec> [--draft] [--scenes 1-3] [--thumb] [--gif] [--webm] [-o out.mp4]   render video (+ .srt if voiced, cover jpg, GIF, WebM)\n  any command: --size 16:9   override meta.size (same spec, another aspect ratio)');
+    return console.log('mograph <command> <spec.yaml>\n  catalog [type]                 scene types / fields (read on demand)\n  lint <spec>                    validate + measure text fit + timing (text only, no images)\n  sheet <spec> [--scenes 2,5-6] [--frames 3] [-o sheet.jpg]   contact sheet for visual QA\n  transcribe <video> [--lang vi]  speech → word timestamps (.words.json, needs `pip install faster-whisper`)\n  jumpcut <talk.mp4> [--gap 0.45]  remove pauses from a talking video (before using it as meta.aroll)\n  doctor                         check node, browser, ffmpeg, voice engines (prints install hints)\n  assets <dir> [--sheet]         list images/audio with size + how to use each (text; --sheet adds one thumbnail image)\n  music --style upbeat --dur 40 -o track.wav   write a built-in track · beat <audio>   detect BPM of your own file\n  remix <spec> [--looks bold,kinetic,editorial] [--seeds 1,2] [--scenes 1-4] [-o f.jpg]   one image comparing looks/seeds (rows) across scenes\n  render <spec> [--draft] [--scenes 1-3] [--thumb] [--gif] [--webm] [-o out.mp4]   render video (+ .srt if voiced, cover jpg, GIF, WebM)\n  any command: --size 16:9   override meta.size (same spec, another aspect ratio)');
   }
   const r = load(pos[0]);
   if (!r.spec) { report(r, null); process.exit(1); }
@@ -283,12 +298,13 @@ async function main() {
     if (!report(r, info)) die('fix lint errors before rendering');
     const ff = ffbin();
     const out = opt.o || base + (draft ? '.draft.mp4' : '.mp4'), m = r.spec.meta;
+    fs.mkdirSync(path.dirname(path.resolve(out)), { recursive: true });
     let audio = null, tmp = [];
     if (!want) {
       let mus = m.audio || null;
       if (m.music) { mus = out + '.music.wav'; tmp.push(mus); synth({ style: m.music, bpm: m.bpm, dur: info.total, out: mus }); }
       const mix = out + '.mix.wav'; tmp.push(mix);
-      audio = mixAudio(ff, { music: mus, info, scenes: r.spec.scenes, volume: m.volume ?? (r.voice ? 0.55 : 0.8), out: mix, lufs: m.lufs ?? -14 });
+      audio = mixAudio(ff, { music: mus, info, scenes: r.spec.scenes, volume: m.volume ?? (r.voice || m.aroll ? 0.35 : 0.8), out: mix, lufs: m.lufs ?? -14, aroll: m._aroll && m._aroll.audio ? m.aroll : null });
     }
     const args = ['-y', '-loglevel', 'error', '-f', 'image2pipe', '-framerate', String(fps), '-c:v', 'mjpeg', '-i', '-',
       ...(audio ? ['-i', audio, '-c:a', 'aac', '-b:a', '192k', '-t', String(info.total)] : []),
@@ -310,7 +326,7 @@ async function main() {
     for (const f of tmp) fs.rmSync(f, { force: true });
     if (process.stdout.isTTY) process.stdout.write('\r');
     console.log(`video → ${out} · ${info.total}s · ${total} frames@${fps} · ${(fs.statSync(out).size / 1e6).toFixed(1)}MB · ${((Date.now() - t0) / 1000).toFixed(0)}s render${audio ? ` · audio ${m.lufs ?? -14} LUFS` : ''}`);
-    if (!want) { const n = writeSrt(info, r.spec.scenes, out.replace(/\.mp4$/i, '.srt')); if (n) console.log(`captions → ${out.replace(/\.mp4$/i, '.srt')} · ${n} lines (upload as subtitles on YouTube/TikTok)`); }
+    if (!want) { const n = writeSrt({ ...info, gcap: m._gcap }, r.spec.scenes, out.replace(/\.mp4$/i, '.srt')); if (n) console.log(`captions → ${out.replace(/\.mp4$/i, '.srt')} · ${n} lines (upload as subtitles on YouTube/TikTok)`); }
     const ex = extras(ff, out, { gif: opt.gif, webm: opt.webm, thumb: opt.thumb, thumbAt: Math.min(info.total - 0.1, info.scenes[0] ? info.scenes[0].start + Math.min(info.scenes[0].need, info.scenes[0].dur - 0.3) : 1.5) });
     if (ex.length) console.log('extras → ' + ex.join(' · '));
   } finally { await br.close(); }

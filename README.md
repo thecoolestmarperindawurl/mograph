@@ -136,6 +136,16 @@ Rút ra từ 5 video motion design nhiều lượt xem (~148 nghìn lượt): n�
 - `look: studio` + `theme: studio`: nền đường cong nét đứt, chuyển cảnh `flood` (màu loang), motion blur theo tốc độ, chữ Archivo đậm hẹp (OFL, đi kèm).
 - Lần đầu dùng sẽ tải mô hình tách nền (4,6 MB mặc định; `cutout: quality` dùng mô hình 176 MB) và cài onnxruntime-web.
 
+## A-roll (v0.9): dựng trên video quay thật, giọng thật
+
+Rút ra từ các video TikTok kiểu "talking head + motion graphic": giọng nói chạy liên tục, đồ hoạ chen vào đúng lúc nói tới, tiêu đề đánh số ở góc trên, khoanh tròn/mũi tên vẽ tay lên màn hình, phụ đề theo từng từ.
+
+- `meta.aroll: talk.mp4` → video của bạn thành trục thời gian: tiếng giữ nguyên, nhạc tự hạ khi có giọng, video dài đúng bằng footage.
+- `meta.transcript: talk.srt` (xuất từ CapCut/Premiere/YouTube) hoặc `.words.json` từ `mograph transcribe` (faster-whisper, cần `pip install faster-whisper`) hoặc kịch bản `.txt` (khớp vào khoảng ngừng, gần đúng) → phụ đề theo từ và mốc cắt theo câu nói.
+- Cảnh `aroll` (footage toàn màn hình, tiêu đề + `num`, thẻ ảnh nổi, `zoom` punch-in), `at: "cụm từ được nói"`, `pip: true` (footage thu thành bong bóng tròn khi đồ hoạ chiếm màn hình), `marks` (khoanh tròn, mũi tên, gạch chân, chữ viết tay).
+- `mograph jumpcut talk.mp4` cắt các khoảng lặng trước khi dựng.
+- Ví dụ: `examples/aroll/aroll-talk.yaml` (footage mẫu là bản ghi màn hình + giọng TTS đứng thay cho giọng thật).
+
 ## 3D, Manim và đầu ra
 
 - `3d: card | object | particles` dựng bằng three.js (MIT, đóng gói sẵn trong `engine/vendor`, chỉ nạp khi dùng): thẻ ảnh sản phẩm nghiêng xoay có bóng đổ, khối 3D màu thương hiệu sau tiêu đề, trường hạt tăng tốc theo beat. Render chậm hơn cảnh thường khoảng 3 lần trên máy không có GPU.
@@ -189,7 +199,8 @@ Ghi nguồn bên thứ ba: `skills/motion-video/engine/vendor/NOTICE.md` (three.
 
 ## Giới hạn hiện tại
 
-- **Phụ đề**: thời điểm từng cụm câu được ước lượng theo độ dài chữ rồi khớp vào các khoảng ngừng thật trong giọng đọc; chưa phải căn chỉnh từng từ bằng nhận dạng giọng nói.
+- **Phụ đề**: với giọng TTS hoặc kịch bản `.txt`, thời điểm được ước lượng theo độ dài chữ rồi khớp vào khoảng ngừng. Có `.srt` hay `mograph transcribe` thì chính xác theo câu/từ. `transcribe` dùng mô hình Whisper tải từ Hugging Face lần đầu; chưa kiểm thử đầu-cuối trong môi trường dựng plugin (mạng chặn Hugging Face), mới kiểm phần đọc `.srt`/`.json`.
+- **A-roll** dài làm render chậm (mỗi khung footage được tách thành ảnh): khoảng 2 giây render cho 1 giây video 9:16 trên máy 4 nhân.
 - **Giọng đọc**: chất lượng phụ thuộc trình đọc trên máy. `piper` cho giọng tự nhiên nhưng lần đầu phải tải giọng (~60 MB); `espeak-ng` nghe như máy.
 - **Nhạc có sẵn** là nhạc tổng hợp (5 kiểu), không thay được nhạc sản xuất chuyên nghiệp. Dò BPM đúng trên các bản thử, nhưng nhạc ngoài có thể đọc được nhiều tempo; lint sẽ báo và bạn chọn bằng `meta.bpm`.
 - **Footage** được tách thành ảnh trước khi dựng, nên clip dài làm render chậm hơn (clip mặc định tối đa 12 giây, đổi bằng `max`).

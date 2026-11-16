@@ -85,6 +85,23 @@ Transitions come from the look (slides style); desk style moves the camera inste
 Music: `upbeat` product intros/explainers · `chill` personal/storytelling · `cinematic` brand stories · `hiphop` creator tips · `drive` launches. Never two scenes of the same type in a row
 unless it is a product series.
 
+## Real footage + real voice (A-roll mode)
+
+When the user has a recorded video with their own voice (talking head, screen recording, podcast clip), that video IS the
+timeline — do not write `voice:` lines or invent a script.
+1. Long pauses? `mg jumpcut talk.mp4` → `talk.cut.mp4` (drops silences > 0.45 s). Use the cut file from here on.
+2. Transcript: best = `.srt` the user exports from CapCut/Premiere/YouTube; else `mg transcribe talk.mp4 --lang vi`
+   (needs `pip install faster-whisper`; the model downloads once); else their script as `.txt` (aligned to pauses, approximate).
+   Read the transcript text once — it is the script. Fix misheard names in the .srt, not in the spec.
+3. `meta: { aroll: talk.cut.mp4, transcript: talk.srt, music: chill }` → the voice plays start to end, music ducks under it,
+   captions come word-timed from the transcript, the video is exactly as long as the footage.
+4. Scenes start at `at:` — a spoken phrase from the transcript (`at: "kho báu"`, preferred) or seconds. First scene starts at 0;
+   a scene without `at` splits the gap evenly. Pattern from viral edits: `aroll` (face/screen, headline `num: 1`) → graphic
+   scene with `pip: true` (footage stays as a round bubble) → back to `aroll` with `zoom: 1.15` (punch-in) → … → `cta`.
+5. Point at things in the footage: `marks: ["circle x y w h", "arrow x1 y1 x2 y2", "underline x y w", "text x y words"]`
+   (percent of the frame; draw on like a pen). Keep `text` marks above y 72 (captions live below). Use `mg sheet` to aim them.
+6. Lint prints `🎬 aroll … cuts at …` — check the cut times land where the user says those words.
+
 ## Spec cheatsheet
 
 ```yaml

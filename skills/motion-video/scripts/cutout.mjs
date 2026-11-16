@@ -5,11 +5,9 @@ import path from 'node:path';
 import http from 'node:http';
 import crypto from 'node:crypto';
 import { spawnSync } from 'node:child_process';
-import { createRequire } from 'node:module';
 import { pathToFileURL } from 'node:url';
-import { CACHE } from './media.mjs';
+import { CACHE, ensurePkg } from './media.mjs';
 
-const require = createRequire(import.meta.url);
 export const MODELS = {
   quality: { file: 'isnet-general-use.onnx', size: 1024, mean: [0.5, 0.5, 0.5], std: [1, 1, 1] },
   fast: { file: 'u2netp.onnx', size: 320, mean: [0.485, 0.456, 0.406], std: [0.229, 0.224, 0.225] },
@@ -24,27 +22,20 @@ function download(url, out) {
   if (r.status !== 0 || !fs.existsSync(tmp) || fs.statSync(tmp).size < 1e5) throw new Error('could not download ' + url + ' (needs curl and network access to github.com)');
   fs.renameSync(tmp, out);
 }
-function ortDir(root) {
-  try { return path.dirname(require.resolve('onnxruntime-web/package.json')) + '/dist'; } catch {}
-  console.log('installing onnxruntime-web for cutouts (first time only)…');
-  const r = spawnSync(process.platform === 'win32' ? 'npm.cmd' : 'npm', ['install', '--no-save', '--no-audit', '--no-fund', '--no-update-notifier', '--loglevel=error', 'onnxruntime-web@1.31.1'], { cwd: root, stdio: 'inherit', shell: process.platform === 'win32' });
-  if (r.status !== 0) throw new Error('could not install onnxruntime-web');
-  return path.join(root, 'node_modules/onnxruntime-web/dist');
-}
-
+function ortDir() { return path.join(ensurePkg('onnxruntime-web', '1.31.1', 'installing onnxruntime-web for cutouts (first time only)…'), 'dist'); }
 /** Cut out every requested image; returns a map srcPath -> cached PNG path. */
 export async function cutouts(br, root, jobs) {
-  const todo = [], done = new Map();
+  const todo = [], done = new Map(), dup = [];
   for (const j of jobs) {
     const st = fs.statSync(j.src), key = crypto.createHash('sha1').update([j.src, st.size, st.mtimeMs, j.model, j.bw ? 1 : 0].join('|')).digest('hex').slice(0, 14);
     const out = path.join(CACHE, 'cutout', key + '.png');
-    if (fs.existsSync(out)) done.set(j.id, out); else todo.push({ ...j, out });
+    if (fs.existsSync(out)) done.set(j.id, out); else if (todo.some(x => x.out === out)) dup.push({ id: j.id, out }); else todo.push({ ...j, out });
   }
   if (!todo.length) return done;
-  const dist = ortDir(root), files = new Map();
+  const dist = ortDir(), files = new Map();
   for (const j of todo) {
     const m = MODELS[j.model] || MODELS.quality, mp = path.join(CACHE, 'models', m.file);
-    if (!fs.existsSync(mp)) { console.log(`downloading cutout model ${m.file} (first time only)…`); download(REL + m.file, mp); }
+    if (!fs.existsSync(mp)) { console.error(`downloading cutout model ${m.file} (first time only)…`); download(REL + m.file, mp); }
     files.set('/model/' + m.file, mp);
   }
   // a tiny local server: onnxruntime-web fetches its wasm, which file:// pages cannot do
@@ -94,11 +85,12 @@ export async function cutouts(br, root, jobs) {
       }, { img, model: '/model/' + m.file, m, bw: !!j.bw });
       fs.mkdirSync(path.dirname(j.out), { recursive: true });
       fs.writeFileSync(j.out, Buffer.from(png, 'base64'));
-      console.log(`cutout → ${path.basename(j.src)} (${j.model || 'quality'}, ${((Date.now() - t0) / 1000).toFixed(1)}s, cached)`);
+      console.error(`cutout → ${path.basename(j.src)} (${j.model || 'quality'}, ${((Date.now() - t0) / 1000).toFixed(1)}s, cached)`);
       done.set(j.id, j.out);
     }
     await page.context().close();
   } finally { srv.close(); }
+  for (const d of dup) done.set(d.id, d.out);
   return done;
 }
 export const fileUrl = p => pathToFileURL(p).href;

@@ -9,9 +9,11 @@ import { createRequire } from 'node:module';
 import { normalize, catalog, themeColors } from './schema.mjs';
 import { STYLES, synth, detectBeat } from './audio.mjs';
 import { cutouts } from './cutout.mjs';
-import { probe, prepClip, prepVoices, mixAudio, ttsEngines, writeSrt, extras, prepManim, manimCmd, CACHE } from './media.mjs';
+import { probe, prepClip, prepVoices, mixAudio, ttsEngines, writeSrt, extras, prepManim, manimCmd, ensurePkg, CACHE } from './media.mjs';
 
 const require = createRequire(import.meta.url);
+// a reader that stops early (`| head`) must not crash the run
+for (const st of [process.stdout, process.stderr]) st.on('error', e => { if (e.code === 'EPIPE') process.exit(process.exitCode || 0); });
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const die = m => { console.error('ERR ' + m); process.exit(1); };
 // first run: install the two npm dependencies into the skill folder (works the same on Windows, macOS, Linux)
@@ -20,7 +22,7 @@ const need = (names, hint) => {
   for (const n of names) try { return require(n); } catch {}
   if (!triedInstall && !process.env.MOGRAPH_NO_INSTALL) {
     triedInstall = true;
-    console.log('installing mograph dependencies (first run, ~10s)…');
+    console.error('installing mograph dependencies (first run, ~10s)…');
     const r = spawnSync(process.platform === 'win32' ? 'npm.cmd' : 'npm', ['install', '--no-audit', '--no-fund', '--no-update-notifier', '--loglevel=error'], { cwd: ROOT, stdio: 'inherit', shell: process.platform === 'win32' });
     if (r.status === 0) for (const n of names) try { return require(n); } catch {}
   }
@@ -93,9 +95,7 @@ async function prepStudio(r, br) {
   const want = sp.scenes.filter(s => s.emoji);
   if (want.length) {
     let dir = null;
-    const find = () => { try { return path.join(path.dirname(require.resolve('@lobehub/fluent-emoji-3d/package.json')), 'assets'); } catch { return null; } };
-    dir = find();
-    if (!dir) { console.log('installing 3D emoji set (first time only, ~16 MB)…'); spawnSync(process.platform === 'win32' ? 'npm.cmd' : 'npm', ['install', '--no-save', '--no-audit', '--no-fund', '--no-update-notifier', '--loglevel=error', '@lobehub/fluent-emoji-3d@1.1.0'], { cwd: ROOT, stdio: 'inherit', shell: process.platform === 'win32' }); dir = find(); }
+    try { dir = path.join(ensurePkg('@lobehub/fluent-emoji-3d', '1.1.0', 'installing 3D emoji set (first time only, ~16 MB)…'), 'assets'); } catch (e) { r.warns.push(e.message); }
     for (const s of want) {
       const cps = [...String(s.emoji).trim()].map(ch => ch.codePointAt(0).toString(16).padStart(4, '0'));
       const cand = [cps.join('-'), cps.filter(x => x !== 'fe0f').join('-')];

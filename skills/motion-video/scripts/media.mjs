@@ -209,3 +209,15 @@ export function prepManim(ff, s, { w, h, fps, colors }) {
   s.clip = out;
 }
 function findFile(dir, name) { if (!fs.existsSync(dir)) return null; for (const e of fs.readdirSync(dir, { withFileTypes: true })) { const p = path.join(dir, e.name); if (e.isDirectory()) { const f = findFile(p, name); if (f) return f; } else if (e.name === name) return p; } return null; }
+
+/** Optional npm packages live in their own folder under the cache, so installing one never prunes another. */
+export function ensurePkg(name, version, note) {
+  const dir = path.join(CACHE, 'npm', name.replace(/[@/]/g, '_') + '@' + version), pkg = path.join(dir, 'node_modules', name);
+  if (fs.existsSync(path.join(pkg, 'package.json'))) return pkg;
+  fs.mkdirSync(dir, { recursive: true });
+  if (!fs.existsSync(path.join(dir, 'package.json'))) fs.writeFileSync(path.join(dir, 'package.json'), '{"private":true}');
+  if (note) console.error(note);
+  const r = spawnSync(process.platform === 'win32' ? 'npm.cmd' : 'npm', ['install', '--no-audit', '--no-fund', '--no-update-notifier', '--loglevel=error', `${name}@${version}`], { cwd: dir, stdio: ['ignore', 'ignore', 'inherit'], shell: process.platform === 'win32' });
+  if (r.status !== 0 || !fs.existsSync(path.join(pkg, 'package.json'))) throw new Error(`could not install ${name}@${version}`);
+  return pkg;
+}

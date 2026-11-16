@@ -77,6 +77,7 @@ export const META = {
   captions: 'false = no on-screen captions for voice lines',
   capwords: 'max words per caption line, 7 default',
   aroll: 'A-roll: path to your recorded video with real voice (talking head / screen recording). It becomes the timeline: its sound is the voice track (music ducks under it), scenes start at `at:` and `aroll` scenes show the footage',
+  reframe: 'with aroll: face = when the footage aspect differs from the output (16:9 footage → 9:16), crop follows the speaker\'s face (needs `mograph openmontage setup`); default = centre crop',
   transcript: 'with aroll: .srt/.vtt (CapCut/YouTube/`mograph transcribe`) → word-timed captions + `at: "phrase"` anchors; or a .txt script → aligned to speech pauses',
   cursor: 'name tag on the cursor in `check` scenes, e.g. "Bạn"',
 };

@@ -9,6 +9,7 @@ import { createRequire } from 'node:module';
 import { normalize, catalog, themeColors } from './schema.mjs';
 import { STYLES, synth, detectBeat } from './audio.mjs';
 import { cutouts } from './cutout.mjs';
+import { omStatus, omSetup, omRun, OM_TOOLS, OM_COMMIT, reframeFor } from './openmontage.mjs';
 import { probe, prepClip, prepVoices, mixAudio, ttsEngines, writeSrt, extras, prepManim, manimCmd, ensurePkg, CACHE, prepAroll, transcribe, jumpcut } from './media.mjs';
 
 const require = createRequire(import.meta.url);
@@ -80,6 +81,10 @@ function prepMedia(r, fps, maxW) {
   const ff = ffbin(), sp = r.spec, notes = [];
   for (const s of sp.scenes) if (s.type === 'manim') try { const full = !!s.fill; prepManim(ff, s, { w: full ? sp.meta.w : 1280, h: full ? sp.meta.h : 720, fps, colors: themeColors(sp.meta.theme) }); } catch (e) { r.errors.push(e.message); }
   for (const s of sp.scenes) if (s.type === 'clip' || (s.type === 'device' && s.clip) || (s.type === 'manim' && s.clip)) try { prepClip(ff, s, fps, maxW); } catch (e) { r.errors.push(e.message); }
+  if (sp.meta.aroll && sp.meta.reframe === 'face' && !r.errors.length) try {
+    const pr = probe(ff, sp.meta.aroll), rf = reframeFor(sp.meta.aroll, sp.meta.w, sp.meta.h, [pr.w, pr.h]);
+    if (rf) { sp.meta._arollSrc = rf.file; notes.push(`reframe: footage ${pr.w}x${pr.h} → ${sp.meta.w}x${sp.meta.h} following the face (OpenMontage auto_reframe, ${rf.method})`); if (sp.scenes.some(s => s.type === 'aroll' && s.marks)) notes.push('reframe moves the crop: aim aroll marks for this size with `sheet --grid` (coordinates are of the reframed footage)'); }
+  } catch (e) { r.errors.push(e.message); }
   if (sp.meta.aroll && !r.errors.length) try { prepAroll(ff, sp, fps, maxW, notes); } catch (e) { r.errors.push(e.message); }
   try { const v = prepVoices(ff, sp, r.dir); if (v) { r.voice = v; notes.push(...v.notes); } } catch (e) { r.errors.push(e.message); }
   r.warns.push(...notes);
@@ -193,6 +198,7 @@ async function doctor() {
   let ff = null; try { ff = process.env.MOGRAPH_FFMPEG || (spawnSync('ffmpeg', ['-version']).status === 0 ? 'ffmpeg' : require('ffmpeg-static')); } catch {}
   if (ff && spawnSync(ff, ['-version']).status === 0) ok.push('ffmpeg ' + (spawnSync(ff, ['-version']).stdout.toString().match(/version (\S+)/) || [])[1]); else bad.push('ffmpeg missing — ' + hint.ff);
   try { const pw = require('playwright-core'); let b = null; for (const o of process.env.MOGRAPH_CHROME ? [{ executablePath: process.env.MOGRAPH_CHROME }] : [{}, { channel: 'chrome' }, { channel: 'msedge' }]) { try { b = await pw.chromium.launch(o); break; } catch {} } if (b) { ok.push('browser ' + b.version()); await b.close(); } else bad.push('no Chrome/Edge/Chromium — ' + hint.chrome); } catch {}
+  { const o = omStatus(); ok.push('openmontage (optional): ' + (o ? (o.ready ? 'ready at ' + o.dir : 'cloned, run `mograph openmontage setup`') : 'not installed — `mograph openmontage setup` adds face-following 16:9→9:16 reframe, voice cleanup, scene detection')); }
   ok.push(manimCmd() ? 'manim (optional): ' + manimCmd().join(' ') : 'manim (optional): not installed — only needed for `manim` scenes');
   const t = ttsEngines(); (t.length ? ok : bad).push(t.length ? 'voice: ' + t.join(', ') : 'no text-to-speech (only needed for `voice:`) — ' + hint.tts);
   console.log(`${os_} · cache ${CACHE}\n` + ok.map(x => '  ok   ' + x).join('\n') + (bad.length ? '\n' + bad.map(x => '  MISS ' + x).join('\n') : ''));
@@ -207,6 +213,23 @@ async function main() {
   }
   if (cmd === 'beat') { const d = detectBeat(pos[0], ffbin()); return console.log(`${d.bpm} bpm · first beat at ${d.offset}s · confidence ${d.conf}${d.conf < 0.15 ? ' (LOW)' : ''}${d.alt.length ? ` · could also be ${d.alt.join(' or ')} bpm (other readings of the same rhythm)` : ''}`); }
   if (cmd === 'assets') return assets(pos[0] || '.');
+  if (cmd === 'openmontage' || cmd === 'om') {
+    const sub = pos[0];
+    try {
+      if (!sub || sub === 'status') { const s = omStatus(); return console.log(s ? `OpenMontage at ${s.dir} · ${s.ready ? 'ready' : 'not set up — run \`mograph openmontage setup\`'}` : 'OpenMontage not installed (optional) — `mograph openmontage setup`'); }
+      if (sub === 'setup') { const d = omSetup(); return console.log(`OpenMontage ready at ${d} (@${OM_COMMIT}, AGPL-3.0, separate program) · tools: ${Object.keys(OM_TOOLS).join(', ')}`); }
+      if (sub === 'tools') return console.log(Object.entries(OM_TOOLS).map(([k, [t, d]]) => `${k.padEnd(10)} ${d}  (${t})`).join('\n'));
+      // generic: mograph openmontage <tool> --input_path a.mp4 --preset clean_speech …  (numbers/booleans parsed)
+      const inputs = {};
+      for (const [k, v] of Object.entries(opt)) inputs[k] = v === true ? true : /^-?\d+(\.\d+)?$/.test(v) ? +v : v;
+      if (opt.o) { inputs.output_path = path.resolve(opt.o); delete inputs.o; }
+      for (const k of ['input_path', 'output_path']) if (inputs[k]) inputs[k] = path.resolve(String(inputs[k]));
+      const res = omRun(sub, inputs);
+      console.log(res.success ? `OK ${sub} · ${JSON.stringify(res.data).slice(0, 600)}` : `ERR ${sub}: ${res.error}`);
+      if (!res.success) process.exitCode = 1;
+      return;
+    } catch (e) { die(e.message); }
+  }
   if (cmd === 'transcribe') {
     if (!pos[0]) die('usage: mograph transcribe <video|audio> [--lang vi] [--model small] [-o words.json]');
     const o = opt.o || pos[0].replace(/\.[^.]+$/, '') + '.words.json';
@@ -220,7 +243,7 @@ async function main() {
   }
   if (cmd === 'doctor') return doctor();
   if (!['lint', 'sheet', 'render', 'remix'].includes(cmd)) {
-    return console.log('mograph <command> <spec.yaml>\n  catalog [type]                 scene types / fields (read on demand)\n  lint <spec>                    validate + measure text fit + timing (text only, no images)\n  sheet <spec> [--scenes 2,5-6] [--frames 3] [-o sheet.jpg]   contact sheet for visual QA\n  transcribe <video> [--lang vi]  speech → word timestamps (.words.json, needs `pip install faster-whisper`)\n  jumpcut <talk.mp4> [--gap 0.45]  remove pauses from a talking video (before using it as meta.aroll)\n  doctor                         check node, browser, ffmpeg, voice engines (prints install hints)\n  assets <dir> [--sheet]         list images/audio with size + how to use each (text; --sheet adds one thumbnail image)\n  music --style upbeat --dur 40 -o track.wav   write a built-in track · beat <audio>   detect BPM of your own file\n  remix <spec> [--looks bold,kinetic,editorial] [--seeds 1,2] [--scenes 1-4] [-o f.jpg]   one image comparing looks/seeds (rows) across scenes\n  render <spec> [--draft] [--scenes 1-3] [--thumb] [--gif] [--webm] [-o out.mp4]   render video (+ .srt if voiced, cover jpg, GIF, WebM)\n  sheet <spec> --grid           same sheet with a 10% grid, to aim `marks`\n  any command: --size 16:9   override meta.size (same spec, another aspect ratio)');
+    return console.log('mograph <command> <spec.yaml>\n  catalog [type]                 scene types / fields (read on demand)\n  lint <spec>                    validate + measure text fit + timing (text only, no images)\n  sheet <spec> [--scenes 2,5-6] [--frames 3] [-o sheet.jpg]   contact sheet for visual QA\n  transcribe <video> [--lang vi]  speech → word timestamps (.words.json, needs `pip install faster-whisper`)\n  openmontage setup|tools|<tool> --input_path f   optional OpenMontage add-on (face reframe, voice cleanup, scene detect…)\n  jumpcut <talk.mp4> [--gap 0.45]  remove pauses from a talking video (before using it as meta.aroll)\n  doctor                         check node, browser, ffmpeg, voice engines (prints install hints)\n  assets <dir> [--sheet]         list images/audio with size + how to use each (text; --sheet adds one thumbnail image)\n  music --style upbeat --dur 40 -o track.wav   write a built-in track · beat <audio>   detect BPM of your own file\n  remix <spec> [--looks bold,kinetic,editorial] [--seeds 1,2] [--scenes 1-4] [-o f.jpg]   one image comparing looks/seeds (rows) across scenes\n  render <spec> [--draft] [--scenes 1-3] [--thumb] [--gif] [--webm] [-o out.mp4]   render video (+ .srt if voiced, cover jpg, GIF, WebM)\n  sheet <spec> --grid           same sheet with a 10% grid, to aim `marks`\n  any command: --size 16:9   override meta.size (same spec, another aspect ratio)');
   }
   // several output sizes (meta.sizes or --size 9:16,16:9): run once per size, outputs get a -9x16 / -16x9 suffix
   if (['lint', 'sheet', 'render'].includes(cmd) && pos[0] && !process.env.MOGRAPH_ONE && fs.existsSync(pos[0])) {

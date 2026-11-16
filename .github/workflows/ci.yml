@@ -47,6 +47,12 @@ jobs:
         run: node skills/motion-video/scripts/mograph.mjs render examples/aroll/aroll-talk.yaml --draft -o out-aroll.mp4
       - name: Jump cut
         run: node skills/motion-video/scripts/mograph.mjs jumpcut examples/aroll/talk.mp4 -o out-cut.mp4
+      - name: "OpenMontage add-on (Linux): setup + scene detection + voice cleanup"
+        if: runner.os == 'Linux'
+        run: |
+          node skills/motion-video/scripts/mograph.mjs openmontage setup
+          node skills/motion-video/scripts/mograph.mjs om scenes --input_path examples/aroll/talk.mp4
+          node skills/motion-video/scripts/mograph.mjs om enhance --input_path examples/aroll/talk.mp4 --preset clean_speech -o out-clean.mp4
       - name: Remix sheet
         run: node skills/motion-video/scripts/mograph.mjs remix examples/fx-showcase.yaml --looks glitch,cinematic -o out-remix.jpg
       - uses: actions/upload-artifact@v4

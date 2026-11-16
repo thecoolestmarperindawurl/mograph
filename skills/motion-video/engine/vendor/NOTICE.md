@@ -8,3 +8,7 @@
   and IS-Net / DIS (Apache-2.0), run with onnxruntime-web (MIT). Models are downloaded on first use, not bundled.
 - 3D emoji: Microsoft Fluent Emoji (MIT) via the `@lobehub/fluent-emoji-3d` npm package (MIT), installed on first use.
 - Archivo font (SIL Open Font License 1.1), see `fonts/OFL-Archivo.txt`.
+
+## OpenMontage (not bundled)
+
+Optional add-on, AGPL-3.0, https://github.com/calesthio/OpenMontage. Not distributed with mograph: `mograph openmontage setup` clones it into the user's cache and mograph runs its tools as a separate process (`scripts/om_bridge.py`).

@@ -263,7 +263,7 @@ const toWords = segs => segs.flatMap(s => { const w = s.text.split(/\s+/).filter
  * phrase) into fixed durations so cuts follow the speech. Sets meta._aroll {frames, fps, len}, meta._gcap (caption cues).
  */
 export function prepAroll(ff, spec, fps, maxW, notes) {
-  const m = spec.meta, src = { clip: m.aroll, max: 3600 };
+  const m = spec.meta, src = { clip: m._arollSrc || m.aroll, max: 3600 };
   prepClip(ff, src, fps, maxW);
   m._aroll = { frames: src._frames, fps, len: src._len, audio: src._hasAudio, w: src._w || 16, h: src._h || 9 };
   if (!src._hasAudio) notes.push('aroll has no sound track — add meta.audio or voice lines');

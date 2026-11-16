@@ -149,6 +149,19 @@ Rút ra từ các video TikTok kiểu "talking head + motion graphic": giọng n
 - Giọng `piper` tự tải từ Hugging Face; nếu bị chặn sẽ tải bản sao trên GitHub (sherpa-onnx). Nhận diện tiếng Việt đã bắt đủ dấu (trước đây câu như "Xin chào, mình là…" bị đọc bằng giọng tiếng Anh).
 - Ví dụ: `examples/aroll/aroll-talk.yaml` (footage mẫu là bản ghi màn hình + giọng piper đứng thay cho giọng thật).
 
+## Kết hợp OpenMontage (tuỳ chọn)
+
+[OpenMontage](https://github.com/calesthio/OpenMontage) là bộ pipeline dựng video cho agent (Python, giấy phép **AGPL-3.0**). mograph **không đóng gói** mã của nó. Lệnh `mograph openmontage setup` tải một bản cố định (`fecb9a1`) vào cache, tạo môi trường Python nhẹ và gọi từng tool như một chương trình riêng qua `scripts/om_bridge.py`, nên mograph vẫn giữ giấy phép MIT.
+
+| Lệnh | Dùng khi | Đã kiểm thử |
+|---|---|---|
+| `meta.reframe: face` / `mograph om reframe` | footage quay ngang, cần bản 9:16 giữ người ở giữa khung | có (clip ngang có người đứng lệch → bản 9:16 bám theo mặt) |
+| `mograph om enhance --preset clean_speech` | giọng thu bằng điện thoại/laptop có tiếng ồn | có |
+| `mograph om scenes` | video dài, cần tìm mốc chuyển cảnh để chọn đoạn | có (khớp mốc cắt đo tay trên video mẫu) |
+| `faces`, `grade`, `silence`, `transcribe` | theo tên | chưa kiểm thử đầu-cuối |
+
+Ghi chú kỹ thuật: tool nhận diện khuôn mặt của OpenMontage dùng API `mediapipe.solutions` đã bị gỡ ở mediapipe bản mới, nên mograph cài `opencv-python-headless<5` để chạy nhánh dự phòng OpenCV Haar (đã kiểm). Kết quả reframe được lưu đệm theo file + kích thước.
+
 ## 3D, Manim và đầu ra
 
 - `3d: card | object | particles` dựng bằng three.js (MIT, đóng gói sẵn trong `engine/vendor`, chỉ nạp khi dùng): thẻ ảnh sản phẩm nghiêng xoay có bóng đổ, khối 3D màu thương hiệu sau tiêu đề, trường hạt tăng tốc theo beat. Render chậm hơn cảnh thường khoảng 3 lần trên máy không có GPU.

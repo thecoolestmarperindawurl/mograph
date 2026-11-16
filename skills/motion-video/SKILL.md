@@ -102,7 +102,14 @@ timeline — do not write `voice:` lines or invent a script.
    (on `aroll` scenes: percent of the FOOTAGE, so the same marks land right in 9:16 and 16:9; lint warns if one is cropped out; draw on like a pen). Keep `text` marks above y 72 (captions live below).
    Footage moves, so add `freeze: true` to that `aroll` scene (picture holds, voice continues), then aim with
    `mg sheet <spec> --scenes N --grid` (10% grid over the frame) — never guess coordinates.
+   Landscape footage but 9:16 output? `meta.reframe: face` keeps the speaker in frame (needs the optional add-on below).
 6. Lint prints `🎬 aroll … cuts at …` — check the cut times land where the user says those words.
+
+### Optional add-on: OpenMontage (only when the footage needs it)
+`mg openmontage setup` once (clones OpenMontage, AGPL-3.0, into the cache — a separate program, not part of mograph).
+Then `mg om <tool> --input_path f [-o out] [--key value]`: `reframe` (face-following 16:9→9:16), `enhance --preset clean_speech`
+(noisy phone/laptop voice), `scenes` (shot cuts of a long video, to choose segments), `faces`, `grade`, `silence`, `transcribe`.
+Do not set it up unless one of these is needed — it costs a download and a few tool calls.
 
 ## Spec cheatsheet
 

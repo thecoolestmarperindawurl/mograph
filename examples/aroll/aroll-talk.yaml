@@ -2,7 +2,7 @@
 # talk.mp4 here is a stand-in (screen recording + piper TTS voice; talk.srt has its exact sentence timings). Use your own: talking head, screen recording, podcast clip.
 # talk.srt = subtitles exported from CapCut/Premiere/YouTube or `mograph transcribe talk.mp4` (or script.txt → aligned to pauses).
 meta:
-  size: "9:16"
+  sizes: ["9:16", "16:9"]
   theme: studio
   look: studio
   aroll: talk.mp4
@@ -19,7 +19,7 @@ scenes:
     at: "AI tự viết"
     zoom: 1.12
     freeze: true
-    marks: ["circle 25 60 50 10", "arrow 80 47 70 58", "text 66 41 bấm là chạy"]
+    marks: ["circle 42 57.5 16 9", "arrow 63 51 56.5 58", "text 61 47 bấm là chạy"]
   - image: ../lanhmar/assets/shot-kho-bau-m.jpg
     title: "*Kho báu* công cụ miễn phí"
     at: "kho báu"

@@ -136,6 +136,7 @@ function report(r, info) {
     for (const s of info.scenes) {
       if (s.overflow) out.push(`ERR  s${s.i} ${s.type}: content overflows the safe area even at 60% size — cut text or split the scene`);
       else if (s.fit < 0.8) out.push(`WARN s${s.i} ${s.type}: auto-shrunk to ${Math.round(s.fit * 100)}% — shorten text for legibility`);
+      if (s.marksOff) out.push(`WARN s${s.i} ${s.type}: mark(s) ${s.marksOff.map(x => `"${x}"`).join(', ')} fall outside the frame at ${info.w}x${info.h} (cropped footage) — move toward the centre of the footage`);
       if (s.fixed && s.dur < s.need) out.push(`WARN s${s.i} ${s.type}: dur ${s.dur}s is shorter than its animation (${s.need}s)`);
       if (s.imgErr) out.push(`ERR  s${s.i}: image failed to load`);
     }
@@ -221,6 +222,23 @@ async function main() {
   if (!['lint', 'sheet', 'render', 'remix'].includes(cmd)) {
     return console.log('mograph <command> <spec.yaml>\n  catalog [type]                 scene types / fields (read on demand)\n  lint <spec>                    validate + measure text fit + timing (text only, no images)\n  sheet <spec> [--scenes 2,5-6] [--frames 3] [-o sheet.jpg]   contact sheet for visual QA\n  transcribe <video> [--lang vi]  speech → word timestamps (.words.json, needs `pip install faster-whisper`)\n  jumpcut <talk.mp4> [--gap 0.45]  remove pauses from a talking video (before using it as meta.aroll)\n  doctor                         check node, browser, ffmpeg, voice engines (prints install hints)\n  assets <dir> [--sheet]         list images/audio with size + how to use each (text; --sheet adds one thumbnail image)\n  music --style upbeat --dur 40 -o track.wav   write a built-in track · beat <audio>   detect BPM of your own file\n  remix <spec> [--looks bold,kinetic,editorial] [--seeds 1,2] [--scenes 1-4] [-o f.jpg]   one image comparing looks/seeds (rows) across scenes\n  render <spec> [--draft] [--scenes 1-3] [--thumb] [--gif] [--webm] [-o out.mp4]   render video (+ .srt if voiced, cover jpg, GIF, WebM)\n  sheet <spec> --grid           same sheet with a 10% grid, to aim `marks`\n  any command: --size 16:9   override meta.size (same spec, another aspect ratio)');
   }
+  // several output sizes (meta.sizes or --size 9:16,16:9): run once per size, outputs get a -9x16 / -16x9 suffix
+  if (['lint', 'sheet', 'render'].includes(cmd) && pos[0] && !process.env.MOGRAPH_ONE && fs.existsSync(pos[0])) {
+    let sizes = opt.size && String(opt.size).includes(',') ? String(opt.size).split(',') : null;
+    if (!sizes && !opt.size) try { const raw = need(['yaml']).parse(fs.readFileSync(pos[0], 'utf8')); if (Array.isArray(raw?.meta?.sizes)) sizes = raw.meta.sizes.map(String); } catch {}
+    if (sizes && sizes.length > 1) {
+      let fail = 0;
+      const base0 = pos[0].replace(/\.(ya?ml|json)$/, ''), rest = argv.filter((a, i) => !['--size', '-o'].includes(a) && !['--size', '-o'].includes(argv[i - 1]));
+      for (const sz of sizes) {
+        const tag = sz.trim().replace(':', 'x');
+        const o = opt.o ? opt.o.replace(/(\.\w+)?$/, `-${tag}$1`) : cmd === 'render' ? `${base0}${opt.draft ? '.draft' : ''}-${tag}.mp4` : cmd === 'sheet' ? `${base0}.sheet-${tag}.jpg` : null;
+        console.log(`── ${sz.trim()}`);
+        const c = spawnSync(process.execPath, [fileURLToPath(import.meta.url), ...rest, '--size', sz.trim(), ...(o ? ['-o', o] : [])], { stdio: 'inherit', env: { ...process.env, MOGRAPH_ONE: '1' } });
+        if (c.status) fail = c.status;
+      }
+      process.exit(fail);
+    }
+  }
   const r = load(pos[0]);
   if (!r.spec) { report(r, null); process.exit(1); }
   prepBeat(r.spec);
@@ -268,7 +286,7 @@ async function main() {
       const { page, info } = await stagePage(br, r.spec, scale);
       if (!report(r, info)) process.exitCode = 1;
       // --grid: 10% grid with labels on top, to read coordinates for `marks`
-      if (opt.grid) await page.evaluate(() => { const g = document.createElement('div'); g.style.cssText = 'position:fixed;inset:0;z-index:99;pointer-events:none;background-image:linear-gradient(90deg,rgba(0,200,255,.55) 2px,transparent 2px),linear-gradient(rgba(0,200,255,.55) 2px,transparent 2px);background-size:10% 10%'; for (let i = 1; i < 10; i++) for (const ax of ['x', 'y']) { const l = document.createElement('b'); l.textContent = i * 10; l.style.cssText = `position:absolute;${ax === 'x' ? `left:${i * 10}%;top:1%` : `top:${i * 10}%;left:1%`};font:700 26px sans-serif;color:#00c8ff;text-shadow:0 0 4px #000`; g.appendChild(l); } document.body.appendChild(g); });
+      if (opt.grid) await page.evaluate(() => window.__mg.grid());
       const want = pickScenes(opt.scenes, info.scenes.length), nf = Math.max(1, +opt.frames || 1), cells = [];
       for (const s of info.scenes) {
         if (want && !want.has(s.i)) continue;

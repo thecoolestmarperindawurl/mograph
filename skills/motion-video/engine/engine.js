@@ -689,20 +689,22 @@
 
 
   // hand-drawn annotations: "circle x y w h", "arrow x1 y1 x2 y2", "underline x y w", "text x y words" (all in % of the frame)
-  function buildMarks(list, host, tl, t0, W, H) {
+  function buildMarks(list, host, tl, t0, W, H, R) {
     const NS = 'http://www.w3.org/2000/svg', svg = document.createElementNS(NS, 'svg'); svg.setAttribute('viewBox', `0 0 ${W} ${H}`); svg.classList.add('marks'); svg.style.strokeWidth = (Math.min(W, H) * 0.011).toFixed(1);
     host.appendChild(svg);
-    const X = v => (v * W) / 100, Y = v => (v * H) / 100, j = W * 0.004;
+    const X = v => R ? R.x + (v * R.w) / 100 : (v * W) / 100, Y = v => R ? R.y + (v * R.h) / 100 : (v * H) / 100, j = W * 0.004, out = [], DX = v => ((R ? R.w : W) * v) / 100, DY = v => ((R ? R.h : H) * v) / 100;
     const line = (pts, seed) => 'M' + pts.map(([x, y], k) => `${(x + (noise(seed * 31 + 7, k) - 0.5) * j).toFixed(1)} ${(y + (noise(seed * 31 + 19, k) - 0.5) * j).toFixed(1)}`).join(' L');
     const draw = (d, at, dur, front) => { const p = document.createElementNS(NS, 'path'); p.setAttribute('d', d); p.setAttribute('pathLength', '100'); front ? svg.appendChild(p) : svg.insertBefore(p, svg.firstChild); tl.fn(at, dur, q => { p.style.strokeDashoffset = 100 - 100 * q; }, 'out'); };
     list.forEach((m, i) => {
       const [kind, ...a] = String(m).trim().split(/\s+/), n = a.map(v => parseFloat(v)), at = t0 + i * 0.45;
       if (kind === 'text') {
-        const d = document.createElement('div'); d.className = 'mark-text'; d.style.left = n[0] + '%'; d.style.top = n[1] + '%'; d.textContent = a.slice(2).join(' '); host.appendChild(d);
+        const d = document.createElement('div'); d.className = 'mark-text'; d.style.left = X(n[0]) + 'px'; d.style.top = Y(n[1]) + 'px'; if (X(n[0]) < W * 0.12 || X(n[0]) > W * 0.88 || Y(n[1]) < 0 || Y(n[1]) > H) out.push(m); d.textContent = a.slice(2).join(' '); host.appendChild(d);
         tl.add(d, { opacity: [0, 1], scale: [0.6, 1], rotate: [-6, -3] }, at, 0.35, 'back'); return;
       }
-      if (kind === 'circle') { const cx = X(n[0] + n[2] / 2), cy = Y(n[1] + n[3] / 2), rx = X(n[2]) * 0.55, ry = Y(n[3]) * 0.6; draw(line(Array.from({ length: 40 }, (_, k) => { const q = -0.7 + (k / 39) * 7.1; return [cx + Math.cos(q) * rx * (1 + 0.05 * q / 7), cy + Math.sin(q) * ry]; }), i), at, 0.5); }
-      else if (kind === 'underline') { const x = X(n[0]), y = Y(n[1]), w = X(n[2]); draw(line(Array.from({ length: 14 }, (_, k) => [x + (w * k) / 13, y + Math.sin(k * 0.8) * W * 0.003 + (k / 13) * W * 0.006]), i), at, 0.35); }
+      const pts0 = kind === 'circle' || kind === 'underline' ? [[n[0], n[1]], [n[0] + (n[2] || 0), n[1] + (n[3] || 0)]] : [[n[0], n[1]], [n[2], n[3]]];
+      if (pts0.some(([x, y]) => X(x) < 0 || X(x) > W || Y(y) < 0 || Y(y) > H)) out.push(m);
+      if (kind === 'circle') { const cx = X(n[0] + n[2] / 2), cy = Y(n[1] + n[3] / 2), rx = DX(n[2]) * 0.58, ry = DY(n[3]) * 0.68; draw(line(Array.from({ length: 40 }, (_, k) => { const q = -0.7 + (k / 39) * 7.1; return [cx + Math.cos(q) * rx * (1 + 0.05 * q / 7), cy + Math.sin(q) * ry]; }), i), at, 0.5); }
+      else if (kind === 'underline') { const x = X(n[0]), y = Y(n[1]), w = DX(n[2]); draw(line(Array.from({ length: 14 }, (_, k) => [x + (w * k) / 13, y + Math.sin(k * 0.8) * W * 0.003 + (k / 13) * W * 0.006]), i), at, 0.35); }
       else if (kind === 'arrow') {
         const x1 = X(n[0]), y1 = Y(n[1]), x2 = X(n[2]), y2 = Y(n[3]), mx = (x1 + x2) / 2 + (y2 - y1) * 0.22, my = (y1 + y2) / 2 - (x2 - x1) * 0.22;
         const pts = Array.from({ length: 18 }, (_, k) => { const q = k / 17; return [(1 - q) ** 2 * x1 + 2 * (1 - q) * q * mx + q * q * x2, (1 - q) ** 2 * y1 + 2 * (1 - q) * q * my + q * q * y2]; });
@@ -711,9 +713,14 @@
         draw(`M${(x2 - L * Math.cos(ang - 0.45)).toFixed(1)} ${(y2 - L * Math.sin(ang - 0.45)).toFixed(1)} L${x2.toFixed(1)} ${y2.toFixed(1)} L${(x2 - L * Math.cos(ang + 0.45)).toFixed(1)} ${(y2 - L * Math.sin(ang + 0.45)).toFixed(1)}`, at + 0.36, 0.14, true);
       }
     });
+    return out;
   }
 
   let S = null;
+  function arRect(a, W, H, z = 1) {
+    const s = Math.max(W / a.w, H / a.h), bw = a.w * s, bh = a.h * s, bx = (W - bw) / 2, by = (H - bh) / 2, ox = W / 2, oy = H * 0.4;
+    return { x: ox + (bx - ox) * z, y: oy + (by - oy) * z, w: bw * z, h: bh * z };
+  }
   const WIN = new Set(['bullets', 'flow', 'loop', 'compare', 'chat', 'bars', 'image', 'clip', 'manim', 'profile', 'check', 'clock', '3d']);
   const LEAD = 0.55, lerp = (a, b, p) => a + (b - a) * p;
   let specRef = null;
@@ -801,7 +808,7 @@
       } else cbox.appendChild(inner);
       el.appendChild(cbox);
       const tl = new TL(), r = B[s.type](s, ctx(inner, tl, portrait, m, s));
-      if (s.marks) buildMarks([].concat(s.marks), el, tl, 0.4, W, H);
+      if (s.marks) s._marksOff = buildMarks([].concat(s.marks), el, tl, 0.4, W, H, s.type === 'aroll' && m._aroll ? arRect(m._aroll, W, H, +s.zoom || 1) : null);
       if (s._emoji) {
         const st = document.createElement('img'); st.className = 'sticker'; st.src = s._emoji;
         const host = inner.querySelector('.subj-box,.mcard') || inner; host.appendChild(st);
@@ -904,7 +911,7 @@
         });
       }
       sc.start = start; spec.scenes[i]._start = start + sc.lead; start += sc.dur;
-      return { i: i + 1, type: sc.type, anim: spec.scenes[i]._anim, tr: desk ? 'cam' : spec.scenes[i]._tr, start: +sc.start.toFixed(3), lead: sc.lead, clipAt: spec.scenes[i]._clipAt, voAt: sc.vo ? +(sc.start + sc.lead + sc.vo.at).toFixed(3) : null, dur: sc.dur, need: +(sc.end + sc.lead + 0.8).toFixed(1), fit: k, overflow: sc.overflow, fixed: sc.fixed, imgErr: !!sc.el.querySelector('img[data-err]') };
+      return { i: i + 1, type: sc.type, anim: spec.scenes[i]._anim, tr: desk ? 'cam' : spec.scenes[i]._tr, start: +sc.start.toFixed(3), lead: sc.lead, clipAt: spec.scenes[i]._clipAt, voAt: sc.vo ? +(sc.start + sc.lead + sc.vo.at).toFixed(3) : null, dur: sc.dur, need: +(sc.end + sc.lead + 0.8).toFixed(1), fit: k, overflow: sc.overflow, fixed: sc.fixed, imgErr: !!sc.el.querySelector('img[data-err]'), marksOff: spec.scenes[i]._marksOff && spec.scenes[i]._marksOff.length ? spec.scenes[i]._marksOff : null };
     });
 
     if (desk) {
@@ -968,6 +975,11 @@
       if (mode !== 'off' && S.AR.img._k !== k) { S.AR.img._k = k; S.AR.img.src = S.AR.F[k]; PEND.push(S.AR.img.decode().catch(() => {})); }
       const z = sp.zoom ? 1 + (sp.zoom - 1) * ease.out5(clamp((t - scenes[ai].start) / 0.35)) : 1;
       S.AR.img.style.transform = mode === 'full' && z !== 1 ? `scale(${z.toFixed(4)})` : '';
+    }
+    if (S.grid) {
+      const sp2 = specRef.scenes[S.scenes.findIndex(sc => t >= sc.start && t < sc.start + sc.dur)] || specRef.scenes[specRef.scenes.length - 1];
+      const r = sp2.type === 'aroll' && S.AR ? arRect(specRef.meta._aroll, S.W, S.H, +sp2.zoom || 1) : { x: 0, y: 0, w: S.W, h: S.H };
+      Object.assign(S.grid.style, { left: r.x + 'px', top: r.y + 'px', width: r.w + 'px', height: r.h + 'px' });
     }
     if (S.cap) captions(t);
     if (S.hit) accents(t);
@@ -1051,5 +1063,10 @@
     [...S.cap.firstChild.children].forEach((e, k) => e.classList.toggle('on', lt >= cue.w[k]));
   }
 
-  window.__mg = { init, seek, themes: Object.keys(THEMES) };
+  function grid() {
+    const g = document.createElement('div'); g.className = 'mg-grid'; S.grid = g;
+    for (let i = 1; i < 10; i++) for (const ax of ['x', 'y']) { const l = document.createElement('b'); l.textContent = i * 10; l.style.cssText = ax === 'x' ? `left:${i * 10}%;top:2%` : `top:${i * 10}%;left:2%`; g.appendChild(l); }
+    document.querySelector('.mg-aroll')?.parentNode.appendChild(g) || document.body.appendChild(g);
+  }
+  window.__mg = { init, seek, grid, themes: Object.keys(THEMES) };
 })();

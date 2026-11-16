@@ -29,7 +29,7 @@ export function prepClip(ff, s, fps, maxW) {
     fs.writeFileSync(path.join(dir, 'done'), '');
   }
   s._frames = fs.readdirSync(dir).filter(f => f.endsWith('.jpg')).sort().map(f => pathToFileURL(path.join(dir, f)).href);
-  s._fps = fps; s._len = s._frames.length / fps; s._hasAudio = info.audio;
+  s._fps = fps; s._len = s._frames.length / fps; s._hasAudio = info.audio; s._w = info.w; s._h = info.h;
 }
 
 // ---------- voiceover ----------
@@ -265,7 +265,7 @@ const toWords = segs => segs.flatMap(s => { const w = s.text.split(/\s+/).filter
 export function prepAroll(ff, spec, fps, maxW, notes) {
   const m = spec.meta, src = { clip: m.aroll, max: 3600 };
   prepClip(ff, src, fps, maxW);
-  m._aroll = { frames: src._frames, fps, len: src._len, audio: src._hasAudio };
+  m._aroll = { frames: src._frames, fps, len: src._len, audio: src._hasAudio, w: src._w || 16, h: src._h || 9 };
   if (!src._hasAudio) notes.push('aroll has no sound track — add meta.audio or voice lines');
   let words = null;
   if (m.transcript) {

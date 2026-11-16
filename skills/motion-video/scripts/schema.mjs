@@ -43,6 +43,7 @@ export const SCENES = {
 };
 export const META = {
   size: '9:16 (default) | 16:9 | 1:1 | 4:5 | WxH',
+  sizes: 'several outputs from one spec, e.g. ["9:16", "16:9"] → render/sheet/lint run once per size (files get -9x16 / -16x9)',
   fps: '30 default',
   theme: 'midnight (default) | paper | terminal | sunset | meadow | lanhmar | studio, or {base, bg, fg, mut, ac, ac2, card, line, font}',
   bg: BGS.join(' | ') + ' (default from the look, else glow)',
@@ -140,7 +141,7 @@ export function catalog(type) {
   if (type === 'fx' || type === 'effects') return 'TEXT ANIMATIONS (anim)\n' + Object.entries(ANIMS).map(([k, v]) => `  ${k.padEnd(9)} ${v}`).join('\n') + '\nTRANSITIONS (tr / meta.transition, slides style)\n' + Object.entries(TRANS).map(([k, v]) => `  ${k.padEnd(9)} ${v}`).join('\n') + '\nOVERLAYS (meta.fx)\n' + Object.entries(FX).map(([k, v]) => `  ${k.padEnd(9)} ${v}`).join('\n') + '\nBEAT ACCENTS (meta.accents; one per bar, strong on beat 1): ' + ACCENTS.join(', ') + '\nBACKGROUNDS (meta.bg; meta.intensity low|mid|high): ' + BGS.join(', ') + '\nANY SCENE: lower: "Name|Role" adds a lower-third.';
   if (type && SCENES[type]) {
     const d = SCENES[type];
-    return `${type} (${d.main}) — ${d.d}\nfields: ${Object.entries(d.f).map(([k, v]) => k + (v ? ` (${v})` : '')).join('; ') || '—'}; dur (seconds, optional — auto if omitted); emoji (a 3D emoji sticker, e.g. "🔥"); anim / tr (override the look for this scene); lower ("Name|Role" lower-third); win (window title, desk style); logo (image, hook/cta/ticket); voice (narration text → speech + captions); vo (your recording of that line); tr (transition out of this scene); with meta.aroll: at (start: seconds or a spoken phrase), pip (footage bubble stays in the corner), marks (hand-drawn: "circle x y w h" | "arrow x1 y1 x2 y2" | "underline x y w" | "text x y words", % of frame)\n${d.ex}`;
+    return `${type} (${d.main}) — ${d.d}\nfields: ${Object.entries(d.f).map(([k, v]) => k + (v ? ` (${v})` : '')).join('; ') || '—'}; dur (seconds, optional — auto if omitted); emoji (a 3D emoji sticker, e.g. "🔥"); anim / tr (override the look for this scene); lower ("Name|Role" lower-third); win (window title, desk style); logo (image, hook/cta/ticket); voice (narration text → speech + captions); vo (your recording of that line); tr (transition out of this scene); with meta.aroll: at (start: seconds or a spoken phrase), pip (footage bubble stays in the corner), marks (hand-drawn: "circle x y w h" | "arrow x1 y1 x2 y2" | "underline x y w" | "text x y words"; % of the footage on aroll scenes — same marks fit every size —, % of the frame elsewhere)\n${d.ex}`;
   }
   return 'SCENE TYPES (first key = type; `mograph catalog <type>` for fields + example)\n'
     + Object.entries(SCENES).map(([k, d]) => `  ${k.padEnd(8)} ${d.d}`).join('\n')

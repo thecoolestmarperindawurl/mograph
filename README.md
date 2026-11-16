@@ -75,6 +75,8 @@ Lần đầu chạy, CLI tự cài 2 dependency npm vào thư mục skill (kho�
 
 ## Dùng
 
+Mặc định mỗi video xuất **2 bản 9:16 (TikTok/Reels/Shorts) và 16:9 (YouTube/web)** từ cùng một spec: `meta.sizes: ["9:16", "16:9"]`, hoặc `--size 9:16,16:9` khi chạy tay. File ra có đuôi `-9x16.mp4` / `-16x9.mp4`, kèm `.srt` cho từng bản. Toạ độ `marks` trên cảnh aroll tính theo footage nên khớp ở cả hai khung.
+
 Trong Claude Code, nói: *"làm video motion graphic 30 giây giải thích AI Agent là gì"*. Hoặc chạy tay:
 
 ```bash

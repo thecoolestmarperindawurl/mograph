@@ -41,7 +41,7 @@ jobs:
         run: node skills/motion-video/scripts/mograph.mjs render examples/fx-showcase.yaml --draft --scenes 1-4 -o out-fx.mp4
       - name: Render (3D scenes, extras)
         run: node skills/motion-video/scripts/mograph.mjs render examples/v07-3d.yaml --draft --thumb --gif -o out-3d.mp4
-      - name: Render (studio pack: cutouts, emoji, flood)
+      - name: "Render (studio pack: cutouts, emoji, flood)"
         run: node skills/motion-video/scripts/mograph.mjs render examples/studio-reel.yaml --draft -o out-studio.mp4
       - name: Remix sheet
         run: node skills/motion-video/scripts/mograph.mjs remix examples/fx-showcase.yaml --looks glitch,cinematic -o out-remix.jpg

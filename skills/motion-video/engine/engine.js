@@ -286,6 +286,45 @@
       });
       return t + Math.max(0, (s.rows || []).length - 1) * 0.42 + 0.65;
     },
+    // two cards fill a grid of `total` cells side by side; counters + time labels run; loser dims; title can flip to `result`
+    race(s, c) {
+      let t = 0;
+      if (s.kicker) { c.up(c.h('div', 'kicker', rich(s.kicker)), 0, 0.5, 0.4); t = 0.15; }
+      const rh = c.h('div', 'rh'), h1 = s.title ? c.h('h2', 'title', '', rh) : null;
+      if (h1) t = c.words(h1, s.title, t) - 0.2;
+      const total = Math.max(1, Math.round(+s.total || 100)), reach = [].concat(s.reach || [Math.round(total * 0.05), total]).map(n => Math.min(total, Math.max(0, +n || 0)));
+      const times = [].concat(s.times || [[], []]).map(x => [].concat(x || []).map(String));
+      const cols = Math.ceil(Math.sqrt(total * (c.portrait ? 1.1 : 2.6))), g = c.h('div', 'cmp race');
+      const side = (i, cls) => {
+        const [a, b] = pair(s.race[i]);
+        const col = c.h('div', 'col ' + cls, `<h3>${rich(a)}${b ? `<small>${rich(b)}</small>` : ''}</h3><div class="rgrid" style="--cols:${cols}">${'<i></i>'.repeat(total)}</div><div class="rft"><span><b>0</b><small> / ${total}</small></span><span class="tm"></span></div>`, g);
+        return { col, cells: [...col.querySelectorAll('.rgrid i')], num: col.querySelector('.rft b'), tm: col.querySelector('.tm') };
+      };
+      const L = side(0, 'l'), R = side(1, 'r');
+      c.tl.add(L.col, { opacity: [0, 1], x: [-1, 0] }, t, 0.55, 'out5');
+      c.tl.add(R.col, { opacity: [0, 1], x: [1, 0] }, t + 0.12, 0.55, 'out5');
+      const t0 = t + 0.6, D = 2.6;
+      [[L, 'in', 0], [R, 'inout', 1]].forEach(([S, e, i]) => {
+        const tl = times[i] || [];
+        c.tl.fn(t0, D, p => {
+          const n = Math.round(reach[i] * p);
+          S.cells.forEach((el, k) => el.classList.toggle('on', k < n));
+          S.num.textContent = n;
+          S.tm.innerHTML = tl.length ? rich(tl[Math.min(tl.length - 1, Math.floor(p * tl.length))]) : '';
+        }, e);
+      });
+      const te = t0 + D;
+      c.tl.add(L.col, { opacity: [1, 0.42] }, te, 0.5);
+      c.tl.add(R.col, { scale: [1, 1.03] }, te, 0.4, 'back');
+      let end = te + 0.5;
+      if (s.result) {
+        const h2 = c.h('h2', 'title', '', rh);
+        if (h1) c.tl.add(h1, { opacity: [1, 0], y: [0, -0.5] }, te, 0.35);
+        end = c.words(h2, s.result, te + 0.15);
+      }
+      c.src(s, te);
+      return { end, read: 1.4 };
+    },
     chat(s, c) {
       let t = c.head(s);
       const box = c.h('div', 'chat');
@@ -721,7 +760,7 @@
     const s = Math.max(W / a.w, H / a.h), bw = a.w * s, bh = a.h * s, bx = (W - bw) / 2, by = (H - bh) / 2, ox = W / 2, oy = H * 0.4;
     return { x: ox + (bx - ox) * z, y: oy + (by - oy) * z, w: bw * z, h: bh * z };
   }
-  const WIN = new Set(['bullets', 'flow', 'loop', 'compare', 'chat', 'bars', 'image', 'clip', 'manim', 'profile', 'check', 'clock', '3d']);
+  const WIN = new Set(['bullets', 'flow', 'loop', 'compare', 'race', 'chat', 'bars', 'image', 'clip', 'manim', 'profile', 'check', 'clock', '3d']);
   const LEAD = 0.55, lerp = (a, b, p) => a + (b - a) * p;
   let specRef = null;
   async function init(spec) {

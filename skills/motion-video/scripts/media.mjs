@@ -69,7 +69,7 @@ function speak(engine, voice, rate, text, out, ff) {
       }
       if (!fs.existsSync(model)) { const why = d.stderr.toString().trim().split('\n').pop().slice(0, 160); fs.writeFileSync(fail, why); throw new Error(`piper voice "${voice}" not available (download failed: ${why})`); }
     }
-    const r = run(PY, ['-m', 'piper', '-m', model, '-f', tmp, '--length-scale', String((1 / rate).toFixed(3))], { input: text });
+    const r = run(PY, ['-m', 'piper', '-m', model, '-f', tmp, '--length-scale', String((1 / rate).toFixed(3))], { input: text, env: { ...process.env, PYTHONUTF8: '1' } }); // Windows: stdin defaults to cp1252 and mangles Vietnamese
     if (r.status !== 0) throw new Error('piper failed: ' + r.stderr.toString().trim().split('\n').pop());
   } else if (engine === 'say') {
     const list = run('say', ['-v', '?']).stdout.toString(), v = voice && new RegExp('^' + voice + '\\s', 'm').test(list) ? voice : '';

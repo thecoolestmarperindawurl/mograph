@@ -91,6 +91,14 @@ small{display:block;margin-top:.2em;font-size:.78em;font-weight:400;line-height:
 
 /* compare */
 .cmp{display:grid;grid-template-columns:1fr 1fr;gap:.8em}
+.rh{display:grid}.rh>.title{grid-area:1/1}
+.race h3 small{display:block;font-size:.62em;font-weight:500;color:var(--mut);margin-top:.2em}
+.rgrid{display:grid;grid-template-columns:repeat(var(--cols),1fr);gap:.14em}
+.rgrid i{aspect-ratio:1;border-radius:.14em;background:color-mix(in srgb,var(--fg) 7%,transparent)}
+.rgrid i.on{background:var(--mut)}.col.r .rgrid i.on{background:var(--ac)}
+.rft{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:baseline;gap:0 .5em;font-variant-numeric:tabular-nums}.rft>span{white-space:nowrap}
+.rft b{font-size:1.7em;font-weight:800}.rft small{display:inline;color:var(--mut)}
+.rft .tm{font-size:1.35em;font-weight:800;color:var(--mut)}.col.r .rft .tm{color:var(--ac)}
 .col{display:flex;flex-direction:column;gap:.6em;min-width:0;padding:1em .9em;background:var(--card);border:1px solid var(--line);border-radius:1em}
 .col h3{font-size:1.1em;font-weight:800;padding-bottom:.55em;border-bottom:1px solid var(--line)}
 .col.l h3{color:var(--mut)}

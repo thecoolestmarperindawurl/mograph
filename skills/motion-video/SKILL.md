@@ -62,6 +62,7 @@ Do not read rendered frames or the video back; do not open engine source unless 
 | Steps in order | `flow` | nodes + arrows, sequential glow |
 | A repeating cycle, or parts around a core | `loop` | ring + orbiting dot |
 | A vs B | `compare` | two columns, right side wins |
+| Old way vs new way over time ("days → minutes") | `race` (`total`, `reach`, `times`, `result`, `src`) | two grids fill side by side, counters run, loser dims, title flips to the result |
 | A conversation with an AI / tool use | `chat` | typed reply, tool chips |
 | A command-line demo | `term` | typed commands |
 | A list of points | `bullets` · `check` (cursor ticks them) | stagger |

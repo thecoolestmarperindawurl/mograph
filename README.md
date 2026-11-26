@@ -217,6 +217,7 @@ Ghi nguồn bên thứ ba: `skills/motion-video/engine/vendor/NOTICE.md` (three.
 
 - **Phụ đề**: với giọng TTS hoặc kịch bản `.txt`, thời điểm được ước lượng theo độ dài chữ rồi khớp vào khoảng ngừng. Có `.srt` hay `mograph transcribe` thì chính xác theo câu/từ. `transcribe` dùng mô hình Whisper tải từ Hugging Face lần đầu; chưa kiểm thử đầu-cuối trong môi trường dựng plugin (mạng chặn Hugging Face), mới kiểm phần đọc `.srt`/`.json`.
 - **A-roll** dài làm render chậm (mỗi khung footage được tách thành ảnh): khoảng 2 giây render cho 1 giây video 9:16 trên máy 4 nhân.
+- **`jumpcut` trên Windows với ffmpeg 9.1**: lệnh bị treo, không ra file (chưa rõ nguyên nhân gốc). Dùng ffmpeg 9.0.2 (`winget install Gyan.FFmpeg --version 9.0.2` hoặc `choco install ffmpeg --version 9.0.2`); CI đang ghim bản này.
 - **Giọng đọc**: chất lượng phụ thuộc trình đọc trên máy. `piper` cho giọng tự nhiên nhưng lần đầu phải tải giọng (~60 MB); `espeak-ng` nghe như máy.
 - **Nhạc có sẵn** là nhạc tổng hợp (5 kiểu), không thay được nhạc sản xuất chuyên nghiệp. Dò BPM đúng trên các bản thử, nhưng nhạc ngoài có thể đọc được nhiều tempo; lint sẽ báo và bạn chọn bằng `meta.bpm`.
 - **Footage** được tách thành ảnh trước khi dựng, nên clip dài làm render chậm hơn (clip mặc định tối đa 12 giây, đổi bằng `max`).

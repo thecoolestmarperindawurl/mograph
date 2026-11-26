@@ -25,7 +25,8 @@ jobs:
         run: brew install ffmpeg
       - name: Install ffmpeg (Windows)
         if: runner.os == 'Windows'
-        run: choco install ffmpeg -y --no-progress
+        # pinned: with ffmpeg 9.1 `mograph jumpcut` never finishes on Windows (encode emits no frame); unpin once fixed
+        run: choco install ffmpeg --version 9.0.2 -y --no-progress
       - name: Doctor
         run: node skills/motion-video/scripts/mograph.mjs doctor
       - name: Lint every example
@@ -46,6 +47,7 @@ jobs:
       - name: "Render (A-roll: real footage + voice, transcript, marks)"
         run: node skills/motion-video/scripts/mograph.mjs render examples/aroll/aroll-talk.yaml --draft -o out-aroll.mp4
       - name: Jump cut
+        timeout-minutes: 5
         run: node skills/motion-video/scripts/mograph.mjs jumpcut examples/aroll/talk.mp4 -o out-cut.mp4
       - name: "OpenMontage add-on (Linux): setup + scene detection + voice cleanup"
         if: runner.os == 'Linux'

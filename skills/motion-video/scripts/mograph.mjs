@@ -191,7 +191,7 @@ async function assets(dir) {
 }
 async function doctor() {
   const os_ = process.platform, ok = [], bad = [];
-  const hint = { darwin: { ff: 'brew install ffmpeg', chrome: 'install Google Chrome', tts: '`say` is built in; for better voices: pip3 install piper-tts' }, win32: { ff: 'winget install Gyan.FFmpeg  (or: npm i --prefix <skill dir> ffmpeg-static)', chrome: 'install Google Chrome or Microsoft Edge', tts: 'Windows speech is built in; for better voices: pip install piper-tts' }, linux: { ff: 'sudo apt install ffmpeg', chrome: 'install Google Chrome, or: npx playwright install chromium', tts: 'pip3 install piper-tts  (or: sudo apt install espeak-ng)' } }[os_] || {};
+  const hint = { darwin: { ff: 'brew install ffmpeg', chrome: 'install Google Chrome', tts: '`say` is built in; for natural voices: pip3 install edge-tts (online) or piper-tts (offline)' }, win32: { ff: 'winget install Gyan.FFmpeg  (or: npm i --prefix <skill dir> ffmpeg-static)', chrome: 'install Google Chrome or Microsoft Edge', tts: 'Windows speech is built in; for natural voices: pip install edge-tts (online) or piper-tts (offline)' }, linux: { ff: 'sudo apt install ffmpeg', chrome: 'install Google Chrome, or: npx playwright install chromium', tts: 'pip3 install edge-tts (online) or piper-tts (offline)  (or: sudo apt install espeak-ng)' } }[os_] || {};
   const nv = +process.versions.node.split('.')[0];
   (nv >= 18 ? ok : bad).push(`node ${process.versions.node}${nv >= 18 ? '' : ' — need 18+'}`);
   for (const d of ['yaml', 'playwright-core']) { try { need([d], ''); ok.push(d); } catch { bad.push(`${d} missing — cd "${ROOT}" && npm install`); } }

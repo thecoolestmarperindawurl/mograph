@@ -38,16 +38,18 @@ const has = (cmd, args = ['--version']) => { try { return run(cmd, args, { timeo
 const PY = process.platform === 'win32' ? 'python' : 'python3';
 export function ttsEngines() {
   const e = [];
+  if (has(PY, ['-c', 'import edge_tts'])) e.push('edge');
   if (has(PY, ['-c', 'import piper'])) e.push('piper');
   if (process.platform === 'darwin' && has('say', ['-v', '?'])) e.push('say');
   if (process.platform === 'win32' && has('powershell', ['-NoProfile', '-Command', 'Add-Type -AssemblyName System.Speech'])) e.push('sapi');
   if (has('espeak-ng')) e.push('espeak');
   return e;
 }
-const VOICES = { piper: ['vi_VN-vais1000-medium', 'en_US-lessac-medium'], say: ['Linh', 'Samantha'], espeak: ['vi', 'en-us'], sapi: ['', ''] };
+// edge default: a multilingual voice keeps English tool names in English inside Vietnamese (vi-VN-HoaiMyNeural spells them out the Vietnamese way)
+const VOICES = { edge: ['en-US-AndrewMultilingualNeural', 'en-US-AndrewMultilingualNeural'], piper: ['vi_VN-vais1000-medium', 'en_US-lessac-medium'], say: ['Linh', 'Samantha'], espeak: ['vi', 'en-us'], sapi: ['', ''] };
 
 function speak(engine, voice, rate, text, out, ff) {
-  const tmp = out.replace(/\.wav$/, '') + (engine === 'say' ? '.src.aiff' : '.src.wav');
+  const tmp = out.replace(/\.wav$/, '') + (engine === 'say' ? '.src.aiff' : engine === 'edge' ? '.src.mp3' : '.src.wav');
   if (engine === 'piper') {
     const vdir = path.join(CACHE, 'voices'), model = path.join(vdir, voice + '.onnx');
     if (!fs.existsSync(model)) {
@@ -79,6 +81,16 @@ function speak(engine, voice, rate, text, out, ff) {
     const ps = `Add-Type -AssemblyName System.Speech; $s=New-Object System.Speech.Synthesis.SpeechSynthesizer; ${voice ? `$s.SelectVoice('${voice.replace(/'/g, "''")}');` : ''} $s.Rate=${Math.round((rate - 1) * 10)}; $s.SetOutputToWaveFile('${tmp.replace(/'/g, "''")}'); $s.Speak([Console]::In.ReadToEnd()); $s.Dispose()`;
     const r = run('powershell', ['-NoProfile', '-Command', ps], { input: text });
     if (r.status !== 0) throw new Error('Windows speech failed: ' + r.stderr.toString().trim().split('\n').pop());
+  } else if (engine === 'edge') {
+    // Microsoft neural voices through edge-tts (online, no API key): reads English tool names inside Vietnamese far better than piper
+    const pct = Math.round((rate - 1) * 100), args = ['-m', 'edge_tts', '--voice', voice, `--rate=${pct < 0 ? '' : '+'}${pct}%`, '--text', text, '--write-media', tmp];
+    const ok = () => fs.existsSync(tmp) && fs.statSync(tmp).size > 1000;
+    let r;
+    for (let k = 0; k < 5 && !ok(); k++) { // the free endpoint now and then answers with no audio: wait and retry
+      if (k) Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 1000 * k);
+      r = run(PY, args, { env: { ...process.env, PYTHONUTF8: '1' }, timeout: 60000 });
+    }
+    if (!ok()) throw new Error('edge-tts gave no audio (it needs internet): ' + String(r?.stderr || '').trim().split('\n').pop());
   } else if (engine === 'espeak') {
     const r = run('espeak-ng', ['-v', voice, '-s', String(Math.round(165 * rate)), '-w', tmp, text]);
     if (r.status !== 0) throw new Error('espeak-ng failed: ' + r.stderr.toString().trim());
@@ -121,7 +133,7 @@ export function prepVoices(ff, spec, dir) {
   if (!list.length) return null;
   const avail = list.every(s => s.vo) ? [] : ttsEngines();
   let engine = m.tts && m.tts !== 'auto' ? m.tts : avail[0];
-  if (!list.every(s => s.vo) && !engine) throw new Error('voice: no text-to-speech engine found. Install one: `pip install piper-tts` (best, any OS) · macOS has `say` built in · Linux: `apt install espeak-ng` — or record each line and set `vo: file.wav` on the scene');
+  if (!list.every(s => s.vo) && !engine) throw new Error('voice: no text-to-speech engine found. Install one: `pip install edge-tts` (natural Microsoft voices, needs internet) or `pip install piper-tts` (offline) · macOS has `say` built in · Linux: `apt install espeak-ng` — or record each line and set `vo: file.wav` on the scene');
   if (m.tts && m.tts !== 'auto' && !avail.includes(m.tts) && !list.every(s => s.vo)) throw new Error(`meta.tts "${m.tts}" is not installed here (found: ${avail.join(', ') || 'none'})`);
   const rate = +m.rate || 1, notes = [];
   for (const s of list) {
@@ -133,8 +145,10 @@ export function prepVoices(ff, spec, dir) {
       const tries = m.tts && m.tts !== 'auto' ? [engine] : avail.slice(avail.indexOf(engine));
       for (let k = 0; k < tries.length; k++) {
         const eng = tries[k], vc = m.voice && eng === engine ? m.voice : VOICES[eng]?.[lang] || '';
-        file = path.join(CACHE, 'tts', hash(eng, vc, rate, s.voice) + '.wav');
-        try { if (!fs.existsSync(file)) { fs.mkdirSync(path.dirname(file), { recursive: true }); speak(eng, vc, rate, s.voice, file, ff); } if (eng !== engine) { notes.push(`${engine} failed, used ${eng} instead`); engine = eng; } break; }
+        // `say:` = what the engine reads (respell names it gets wrong); `voice:` stays the caption text
+        const spoken = s.say || s.voice;
+        file = path.join(CACHE, 'tts', hash(eng, vc, rate, spoken) + '.wav');
+        try { if (!fs.existsSync(file)) { fs.mkdirSync(path.dirname(file), { recursive: true }); speak(eng, vc, rate, spoken, file, ff); } if (eng !== engine) { notes.push(`${engine} failed, used ${eng} instead`); engine = eng; } break; }
         catch (e) { if (k === tries.length - 1) throw e; notes.push(`${eng}: ${e.message.split('\n')[0]}`); }
       }
     }

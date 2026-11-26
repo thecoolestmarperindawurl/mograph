@@ -30,7 +30,7 @@ Needs Node 18+, Google Chrome/Edge (or `MOGRAPH_CHROME`), ffmpeg. If anything fa
    Voiceover (optional): `voice: "narration"` on a scene → speech + on-screen captions; the scene stretches to fit the line and music
    ducks under it. Use the user's recording with `vo: file.wav` (keep `voice:` as the caption text). One or two short sentences per scene.
 6. **`mg lint <spec>`** (text). Fix every ERR/WARN, repeat until `OK`. Check the `♪` line: if confidence is LOW or it lists other possible tempos, tell the user and set `bpm` if they say the cuts feel off.
-   The `🎙` line names the voice engine; if it is espeak (also the automatic fallback when a piper voice cannot be downloaded), keep going, then tell the user it sounds robotic and offer `pip install piper-tts` or recorded `vo:` files.
+   The `🎙` line names the voice engine; if it is espeak (also the automatic fallback when a piper voice cannot be downloaded), keep going, then tell the user it sounds robotic and offer `pip install edge-tts` (natural, online), `pip install piper-tts` (offline) or recorded `vo:` files. When the user says a word is misread, add `say:` with a respelling on that scene; never change `voice:` for it.
    Over `max`: set `pace: 0.8`, trim clips, shorten voice lines, or drop a scene. Up to ~2s over is fine — say so instead of looping.
 7. **`mg sheet <spec>`** — ONE contact-sheet image of every scene; look once. After fixes re-check only what changed
    (`--scenes 3,5`). A `recap` frame looks empty in the sheet — that is its end state, not a bug. `sheet` and `render` re-run lint themselves.
@@ -148,7 +148,7 @@ scenes:
 - `size`: 9:16 · 16:9 · 1:1 · 4:5. `theme`: midnight · paper · terminal · sunset · meadow · lanhmar, or a brand map
   `{base: paper, bg: "#fff", ac: "#7c3aed", ac2: "#f97316", font: Montserrat}`. `bg`: glow · grid · dots · plain.
 - `max: 45` = target length in seconds (lint warns above it). `pace: 0.7` = faster cuts. `sync: half` (default, cut every 2 beats) · `beat` · `bar` · `off`. `volume: 0.8`. `pulse: false` removes the beat zoom.
-- Voice: `tts: auto` (piper → say/Windows → espeak) · `voice: <voice name>` · `rate: 1.1` · `captions: false` · `capwords: 6`.
+- Voice: `tts: auto` (edge → piper → say/Windows → espeak; `edge` = Microsoft neural voices, online; default `en-US-AndrewMultilingualNeural` (male) reads Vietnamese with English tool names pronounced in English; female `vi-VN-HoaiMyNeural` sounds more local but says names the Vietnamese way) · scene `say: "Com-pô-zi-ô"` = what the engine reads when it mispronounces a word (captions keep `voice:`) · `voice: <voice name>` · `rate: 1.1` · `captions: false` · `capwords: 6`.
 - `marquee: "TEXT ★ TEXT ★"` scrolling band. `mascot: path` (desk) hops between cards. `cursor: Name` tags the `check` cursor.
 - Other types: `kinetic`, `sting`, `split`, `device`, `grid`, `timeline`, `bullets`, `term`, `bars`, `quote`, `profile`, `clock`, `pin`, `cta`, `raw` (custom HTML — last resort, tell the user). Fields: `mg catalog <type>`.
 

@@ -72,7 +72,7 @@ export const META = {
   fx: 'overlay effects list, overrides the look: ' + Object.keys(FX).join(' | ') + ', e.g. [grain, leak]; [] = none',
   transition: 'slides only, overrides the look: ' + Object.keys(TRANS).join(' | ') + ' (per scene: tr)',
   layout: 'desk only: row (default) | column | grid | zigzag — how cards sit on the canvas, so the camera moves in 2D',
-  tts: 'voice engine: auto (default) | piper | say | sapi | espeak',
+  tts: 'voice engine: auto (default: edge → piper → say/sapi → espeak) | edge | piper | say | sapi | espeak',
   voice: 'voice name for the engine (piper e.g. vi_VN-vais1000-medium, say e.g. Linh)',
   rate: 'speech speed, 1 default',
   captions: 'false = no on-screen captions for voice lines',
@@ -82,7 +82,7 @@ export const META = {
   transcript: 'with aroll: .srt/.vtt (CapCut/YouTube/`mograph transcribe`) → word-timed captions + `at: "phrase"` anchors; or a .txt script → aligned to speech pauses',
   cursor: 'name tag on the cursor in `check` scenes, e.g. "Bạn"',
 };
-const COMMON = ['dur', 'win', 'logo', 'voice', 'vo', 'tr', 'anim', 'lower', 'emoji', 'at', 'pip', 'marks'];
+const COMMON = ['dur', 'win', 'logo', 'voice', 'say', 'vo', 'tr', 'anim', 'lower', 'emoji', 'at', 'pip', 'marks'];
 const SIZES = { '9:16': [1080, 1920], '16:9': [1920, 1080], '1:1': [1080, 1080], '4:5': [1080, 1350] };
 const wc = s => String(s).split(/\s+/).filter(Boolean).length;
 
@@ -128,6 +128,7 @@ export function normalize(raw) {
     if (s.tr && !TRANS[s.tr]) errors.push(`${id}: tr "${s.tr}" unknown (${Object.keys(TRANS).join('|')})`);
     if (s.anim && !ANIMS[s.anim]) errors.push(`${id}: anim "${s.anim}" unknown (${Object.keys(ANIMS).join('|')})`);
     if (type === 'kinetic' && Array.isArray(v)) v.forEach((x, k) => { if (wc(x) > 6) warns.push(`${id} kinetic: phrase ${k + 1} has ${wc(x)} words, keep ≤5`); });
+    if (s.say && !s.voice) errors.push(`${id}: say needs the matching voice: text (say is only what the engine reads)`);
     if (s.vo && !s.voice) errors.push(`${id}: vo needs the matching voice: text (used for captions)`);
     if ((s.at != null || s.pip) && !meta.aroll) errors.push(`${id}: at/pip need meta.aroll (your recorded video)`);
     if (type === 'aroll' && !meta.aroll) errors.push(`${id} aroll: needs meta.aroll: your-video.mp4`);
@@ -144,7 +145,7 @@ export function catalog(type) {
   if (type === 'fx' || type === 'effects') return 'TEXT ANIMATIONS (anim)\n' + Object.entries(ANIMS).map(([k, v]) => `  ${k.padEnd(9)} ${v}`).join('\n') + '\nTRANSITIONS (tr / meta.transition, slides style)\n' + Object.entries(TRANS).map(([k, v]) => `  ${k.padEnd(9)} ${v}`).join('\n') + '\nOVERLAYS (meta.fx)\n' + Object.entries(FX).map(([k, v]) => `  ${k.padEnd(9)} ${v}`).join('\n') + '\nBEAT ACCENTS (meta.accents; one per bar, strong on beat 1): ' + ACCENTS.join(', ') + '\nBACKGROUNDS (meta.bg; meta.intensity low|mid|high): ' + BGS.join(', ') + '\nANY SCENE: lower: "Name|Role" adds a lower-third.';
   if (type && SCENES[type]) {
     const d = SCENES[type];
-    return `${type} (${d.main}) — ${d.d}\nfields: ${Object.entries(d.f).map(([k, v]) => k + (v ? ` (${v})` : '')).join('; ') || '—'}; dur (seconds, optional — auto if omitted); emoji (a 3D emoji sticker, e.g. "🔥"); anim / tr (override the look for this scene); lower ("Name|Role" lower-third); win (window title, desk style); logo (image, hook/cta/ticket); voice (narration text → speech + captions); vo (your recording of that line); tr (transition out of this scene); with meta.aroll: at (start: seconds or a spoken phrase), pip (footage bubble stays in the corner), marks (hand-drawn: "circle x y w h" | "arrow x1 y1 x2 y2" | "underline x y w" | "text x y words"; % of the footage on aroll scenes — same marks fit every size —, % of the frame elsewhere)\n${d.ex}`;
+    return `${type} (${d.main}) — ${d.d}\nfields: ${Object.entries(d.f).map(([k, v]) => k + (v ? ` (${v})` : '')).join('; ') || '—'}; dur (seconds, optional — auto if omitted); emoji (a 3D emoji sticker, e.g. "🔥"); anim / tr (override the look for this scene); lower ("Name|Role" lower-third); win (window title, desk style); logo (image, hook/cta/ticket); voice (narration text → speech + captions); say (what the voice engine reads instead, to fix mispronounced names; captions keep voice); vo (your recording of that line); tr (transition out of this scene); with meta.aroll: at (start: seconds or a spoken phrase), pip (footage bubble stays in the corner), marks (hand-drawn: "circle x y w h" | "arrow x1 y1 x2 y2" | "underline x y w" | "text x y words"; % of the footage on aroll scenes — same marks fit every size —, % of the frame elsewhere)\n${d.ex}`;
   }
   return 'SCENE TYPES (first key = type; `mograph catalog <type>` for fields + example)\n'
     + Object.entries(SCENES).map(([k, d]) => `  ${k.padEnd(8)} ${d.d}`).join('\n')

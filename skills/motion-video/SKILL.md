@@ -148,7 +148,7 @@ scenes:
 - `size`: 9:16 · 16:9 · 1:1 · 4:5. `theme`: midnight · paper · terminal · sunset · meadow · lanhmar, or a brand map
   `{base: paper, bg: "#fff", ac: "#7c3aed", ac2: "#f97316", font: Montserrat}`. `bg`: glow · grid · dots · plain.
 - `max: 45` = target length in seconds (lint warns above it). `pace: 0.7` = faster cuts. `sync: half` (default, cut every 2 beats) · `beat` · `bar` · `off`. `volume: 0.8`. `pulse: false` removes the beat zoom.
-- Voice: `tts: auto` (edge → piper → say/Windows → espeak; `edge` = Microsoft neural voices, online; default `en-US-AndrewMultilingualNeural` (male) reads Vietnamese with English tool names pronounced in English; female `vi-VN-HoaiMyNeural` sounds more local but says names the Vietnamese way) · scene `say: "Com-pô-zi-ô"` = what the engine reads when it mispronounces a word (captions keep `voice:`) · `voice: <voice name>` · `rate: 1.1` · `captions: false` · `capwords: 6`.
+- Voice: `tts: auto` (edge → piper → say/Windows → espeak; `edge` = Microsoft neural voices, online; default `vi-VN-HoaiMyNeural` (female, natural Vietnamese; says English names the Vietnamese way, so fix key names with `say:`); `voice: en-US-AndrewMultilingualNeural` (male) keeps English names in English) · scene `say: "Com-pô-zi-ô"` = what the engine reads when it mispronounces a word (captions keep `voice:`) · `voice: <voice name>` · `rate: 1.1` · `captions: false` · `capwords: 6`.
 - `marquee: "TEXT ★ TEXT ★"` scrolling band. `mascot: path` (desk) hops between cards. `cursor: Name` tags the `check` cursor.
 - Other types: `kinetic`, `sting`, `split`, `device`, `grid`, `timeline`, `bullets`, `term`, `bars`, `quote`, `profile`, `clock`, `pin`, `cta`, `raw` (custom HTML — last resort, tell the user). Fields: `mg catalog <type>`.
 

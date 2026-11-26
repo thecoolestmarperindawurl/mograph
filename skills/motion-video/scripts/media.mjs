@@ -45,8 +45,8 @@ export function ttsEngines() {
   if (has('espeak-ng')) e.push('espeak');
   return e;
 }
-// edge default: a multilingual voice keeps English tool names in English inside Vietnamese (vi-VN-HoaiMyNeural spells them out the Vietnamese way)
-const VOICES = { edge: ['en-US-AndrewMultilingualNeural', 'en-US-AndrewMultilingualNeural'], piper: ['vi_VN-vais1000-medium', 'en_US-lessac-medium'], say: ['Linh', 'Samantha'], espeak: ['vi', 'en-us'], sapi: ['', ''] };
+// edge default: HoaiMy (owner's pick, natural Vietnamese); it says English names the Vietnamese way, so use `say:` or meta.voice en-US-AndrewMultilingualNeural when names matter
+const VOICES = { edge: ['vi-VN-HoaiMyNeural', 'en-US-AvaMultilingualNeural'], piper: ['vi_VN-vais1000-medium', 'en_US-lessac-medium'], say: ['Linh', 'Samantha'], espeak: ['vi', 'en-us'], sapi: ['', ''] };
 
 function speak(engine, voice, rate, text, out, ff) {
   const tmp = out.replace(/\.wav$/, '') + (engine === 'say' ? '.src.aiff' : engine === 'edge' ? '.src.mp3' : '.src.wav');

@@ -10,6 +10,16 @@ const run = (cmd, args, o = {}) => spawnSync(cmd, args, { maxBuffer: 1 << 26, ..
 const hash = (...a) => crypto.createHash('sha1').update(a.join('\u0000')).digest('hex').slice(0, 14);
 export const CACHE = process.env.MOGRAPH_CACHE || path.join(os.homedir(), '.cache', 'mograph');
 
+// colour grades for real footage (ffmpeg filters, tuned gently so skin stays natural); a .cube path = the user's LUT
+export const GRADES = {
+  warm: 'colorbalance=rs=.05:bs=-.05:rm=.04:bm=-.04,eq=saturation=1.08',
+  cool: 'colorbalance=rs=-.04:bs=.05:rm=-.03:bm=.04,eq=saturation=0.95',
+  moody: 'eq=contrast=1.12:saturation=0.8:brightness=-0.03,colorbalance=rs=-.03:bs=.04:rh=.04:bh=-.03,vignette=PI/5',
+  bw: 'hue=s=0,eq=contrast=1.15',
+  vivid: 'eq=contrast=1.06:saturation=1.22,unsharp=5:5:0.4',
+};
+export const gradeVf = g => !g ? '' : /\.cube$/i.test(g) ? `,lut3d=file='${g.replace(/\\/g, '/').replace(/:/g, '\\:')}'` : GRADES[g] ? ',' + GRADES[g] : '';
+
 /** duration (s), width, height, hasAudio — parsed from `ffmpeg -i`, so ffprobe is not required. */
 export function probe(ff, file) {
   const e = run(ff, ['-hide_banner', '-i', file]).stderr.toString();
@@ -21,10 +31,11 @@ export function probe(ff, file) {
 export function prepClip(ff, s, fps, maxW) {
   const st = fs.statSync(s.clip), from = +s.from || 0, info = probe(ff, s.clip);
   const len = Math.max(0.2, Math.min((s.to != null ? +s.to : info.dur) - from, info.dur - from, +s.max || 12));
-  const dir = path.join(CACHE, 'clips', hash(s.clip, st.size, st.mtimeMs, from, len, fps, maxW));
+  const g = s.grade || '', gst = /\.cube$/i.test(g) ? fs.statSync(g).mtimeMs : '';
+  const dir = path.join(CACHE, 'clips', hash(s.clip, st.size, st.mtimeMs, from, len, fps, maxW, g, gst));
   if (!fs.existsSync(path.join(dir, 'done'))) {
     fs.mkdirSync(dir, { recursive: true });
-    const r = run(ff, ['-v', 'error', '-y', '-ss', String(from), '-t', String(len), '-i', s.clip, '-vf', `fps=${fps},scale='min(${maxW},iw)':-2`, '-q:v', '3', path.join(dir, '%05d.jpg')]);
+    const r = run(ff, ['-v', 'error', '-y', '-ss', String(from), '-t', String(len), '-i', s.clip, '-vf', `fps=${fps},scale='min(${maxW},iw)':-2${gradeVf(g)}`, '-q:v', '3', path.join(dir, '%05d.jpg')]);
     if (r.status !== 0) throw new Error('cannot read footage ' + s.clip + ': ' + r.stderr.toString().split('\n')[0]);
     fs.writeFileSync(path.join(dir, 'done'), '');
   }
@@ -277,7 +288,7 @@ const toWords = segs => segs.flatMap(s => { const w = s.text.split(/\s+/).filter
  * phrase) into fixed durations so cuts follow the speech. Sets meta._aroll {frames, fps, len}, meta._gcap (caption cues).
  */
 export function prepAroll(ff, spec, fps, maxW, notes) {
-  const m = spec.meta, src = { clip: m._arollSrc || m.aroll, max: 3600 };
+  const m = spec.meta, src = { clip: m._arollSrc || m.aroll, max: 3600, grade: m.grade };
   prepClip(ff, src, fps, maxW);
   m._aroll = { frames: src._frames, fps, len: src._len, audio: src._hasAudio, w: src._w || 16, h: src._h || 9 };
   if (!src._hasAudio) notes.push('aroll has no sound track — add meta.audio or voice lines');

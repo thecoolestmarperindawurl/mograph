@@ -552,6 +552,13 @@
     aroll(s, c) {
       c.el.classList.add('ar-over');
       let t = 0.15;
+      // behind: giant words between the footage and a per-frame matte of the speaker (frames set in the render loop)
+      if (s.behind) {
+        const host = c.el.closest('.mg-scene') || c.el, bk = c.h('div', 'ar-behind', '', host), h = c.h('div', 'big', '', bk);
+        // lint has no mattes yet; start on the first one so the load check passes before the render loop swaps frames
+        if (s._cut && Object.keys(s._cut).length) { s._cutEl = c.h('img', 'ar-cut', null, host); s._cutEl.src = Object.values(s._cut)[0]; }
+        t = Math.max(t, c.words(h, s.behind, 0.15, 0.09));
+      }
       if (s.aroll) { const hd = c.h('div', 'ar-head', s.num != null ? `<span class="ar-num">${esc(s.num)}</span>` : ''); const h = c.h('div', 'big sm', '', hd); if (s.num != null) c.pop(hd.firstChild, 0.1, 0.45); t = c.words(h, s.aroll, 0.2, 0.06); }
       if (s.image) { const fr = document.createElement('div'); fr.className = 'ar-card'; fr.innerHTML = `<img src="${esc(s.image)}">`; (c.el.closest('.mg-scene') || c.el).appendChild(fr); c.tl.add(fr, { opacity: [0, 1], scale: [0.6, 1], rotate: [8, 3], y: [1, 0] }, t, 0.55, 'back'); }
       return { end: t + 0.5, read: 0 };
@@ -858,6 +865,23 @@
         lo.className = 'lower'; lo.innerHTML = `<i></i><div><b>${rich(la)}</b>${lb ? `<span>${rich(lb)}</span>` : ''}</div>`; el.appendChild(lo);
         tl.add(lo.firstChild, { sy: [0, 1] }, 0.5, 0.35, 'out5'); tl.add(lo.lastChild, { opacity: [0, 1], x: [-1, 0] }, 0.62, 0.5, 'out5');
       }
+      if (s.half) el.classList.add('half-host');
+      // social overlays: Follow pill that gets tapped, Instagram-style comment whose heart fills
+      const av = n => `<i class="ig-av">${esc(String(n).replace(/^@/, '').charAt(0).toUpperCase())}</i>`;
+      if (s.follow) {
+        const f = document.createElement('div'); f.className = 'ig-follow'; el.appendChild(f);
+        f.innerHTML = `${av(s.follow)}<b>${esc(s.follow)}</b><span class="ig-btn">Follow</span>`;
+        const btn = f.lastChild;
+        tl.add(f, { opacity: [0, 1], scale: [0.6, 1], y: [0.8, 0] }, 0.4, 0.5, 'back');
+        tl.fn(1.3, 0.3, p => { btn.style.transform = `scale(${(1 - 0.14 * Math.sin(Math.PI * p)).toFixed(3)})`; const d = p >= 0.5; btn.classList.toggle('done', d); btn.textContent = d ? 'Following' : 'Follow'; });
+      }
+      if (s.comment) {
+        const [cu, ct] = pair(s.comment), cm = document.createElement('div'); cm.className = 'ig-cmt'; el.appendChild(cm);
+        cm.innerHTML = `${av(cu)}<div><b>${esc(cu)}</b><p>${rich(ct || '')}</p></div><svg class="ig-heart" viewBox="0 0 24 24"><path d="M12 21s-7.5-4.6-9.5-9.1C1 8.4 3.2 5 6.6 5c2 0 3.4 1.1 4.4 2.5C12 6.1 13.4 5 15.4 5 18.8 5 21 8.4 19.5 11.9 17.5 16.4 12 21 12 21z"/></svg>`;
+        const hs = cm.lastChild;
+        tl.add(cm, { opacity: [0, 1], y: [1.2, 0], scale: [0.9, 1] }, 0.6, 0.5, 'out5');
+        tl.fn(1.5, 0.35, p => { hs.classList.toggle('on', p >= 0.3); hs.style.transform = `scale(${(1 + 0.45 * Math.sin(Math.PI * p)).toFixed(3)})`; });
+      }
       if (!portrait && ['image', 'clip', 'manim', 'loop'].includes(s.type) && !s.fill && inner.querySelector(':scope>.title,:scope>.kicker,:scope>.sub')) inner.classList.add('sp');
       const end = typeof r === 'number' ? r : r.end;
       const words = countWords(s, '');
@@ -1009,11 +1033,16 @@
     if (prog) prog.firstChild.style.width = Math.min(100, (t / total) * 100) + '%';
     if (S.AR) {
       let ai = scenes.findIndex(sc => t >= sc.start && t < sc.start + sc.dur); if (ai < 0) ai = scenes.length - 1;
-      const sp = specRef.scenes[ai], mode = sp.type === 'aroll' ? 'full' : sp.pip ? 'pip' : 'off', ft = sp.freeze != null && sp.freeze !== false ? scenes[ai].start + (sp.freeze === true ? 0 : +sp.freeze || 0) : t, k = Math.max(0, Math.min(S.AR.F.length - 1, Math.floor(ft * S.AR.fps)));
+      const sp = specRef.scenes[ai], mode = sp.type === 'aroll' ? 'full' : sp.pip ? 'pip' : sp.half ? 'half' : 'off', ft = sp.freeze != null && sp.freeze !== false ? scenes[ai].start + (sp.freeze === true ? 0 : +sp.freeze || 0) : t, k = Math.max(0, Math.min(S.AR.F.length - 1, Math.floor(ft * S.AR.fps)));
       S.AR.box.className = 'mg-aroll ' + mode;
       if (mode !== 'off' && S.AR.img._k !== k) { S.AR.img._k = k; S.AR.img.src = S.AR.F[k]; PEND.push(S.AR.img.decode().catch(() => {})); }
       const z = sp.zoom ? 1 + (sp.zoom - 1) * ease.out5(clamp((t - scenes[ai].start) / 0.35)) : 1;
       S.AR.img.style.transform = mode === 'full' && z !== 1 ? `scale(${z.toFixed(4)})` : '';
+      const ce = sp._cutEl, cu = ce && sp._cut && sp._cut[k];
+      if (ce) {
+        ce.style.display = cu ? 'block' : 'none'; ce.style.transform = S.AR.img.style.transform;
+        if (cu && ce._k !== k) { ce._k = k; ce.src = cu; PEND.push(ce.decode().catch(() => {})); }
+      }
     }
     if (S.grid) {
       const sp2 = specRef.scenes[S.scenes.findIndex(sc => t >= sc.start && t < sc.start + sc.dur)] || specRef.scenes[specRef.scenes.length - 1];

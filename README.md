@@ -149,6 +149,14 @@ Rút ra từ các video TikTok kiểu "talking head + motion graphic": giọng n
 - Giọng `piper` tự tải từ Hugging Face; nếu bị chặn sẽ tải bản sao trên GitHub (sherpa-onnx). Nhận diện tiếng Việt đã bắt đủ dấu (trước đây câu như "Xin chào, mình là…" bị đọc bằng giọng tiếng Anh).
 - Ví dụ: `examples/aroll/aroll-talk.yaml` (footage mẫu là bản ghi màn hình + giọng piper đứng thay cho giọng thật).
 
+## Video người thật (v0.10): màu, chữ sau lưng, chia đôi, Follow
+
+- `meta.grade: warm | cool | moody | bw | vivid` chỉnh màu footage (aroll và mọi cảnh `clip`; mỗi `clip` đặt `grade:` riêng được). Dùng LUT của bạn: `grade: looks/film.cube`.
+- `behind: "CHỮ LỚN"` trên cảnh `aroll`: chữ khổng lồ nằm **sau lưng** người nói. Người được tách nền khoảng 10 khung/giây bằng model nhẹ chạy ngay trong trình duyệt của engine (lần đầu tải ~5 MB, mỗi khung ~2–4 giây, lưu đệm); `meta.cutout: person` cho viền sạch hơn nhưng chậm hơn ~25 lần. Nên dùng cho cảnh ≤4 giây.
+- `half: true` trên cảnh đồ hoạ: người nói chiếm nửa dưới (16:9: nửa phải), cảnh chiếm nửa còn lại.
+- `follow: "@handle"` (nút Follow được bấm, thành Following) và `comment: "tên|nội dung"` (bình luận kiểu Instagram, tim đỏ lên) trên mọi cảnh.
+- Ví dụ: `examples/aroll/aroll-social.yaml`. Footage mẫu là bản ghi màn hình; `behind` cần người thật trong khung mới đẹp.
+
 ## Kết hợp OpenMontage (tuỳ chọn)
 
 [OpenMontage](https://github.com/calesthio/OpenMontage) là bộ pipeline dựng video cho agent (Python, giấy phép **AGPL-3.0**). mograph **không đóng gói** mã của nó. Lệnh `mograph openmontage setup` tải một bản cố định (`fecb9a1`) vào cache, tạo môi trường Python nhẹ và gọi từng tool như một chương trình riêng qua `scripts/om_bridge.py`, nên mograph vẫn giữ giấy phép MIT.

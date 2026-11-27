@@ -1,0 +1,24 @@
+# Talking-head moves: colour grade, giant words BEHIND the speaker, split screen, Follow + comment overlays.
+# talk.mp4 is a stand-in (screen recording); `behind` needs a real person on camera to look right.
+meta:
+  sizes: ["9:16", "16:9"]
+  theme: studio
+  look: studio
+  aroll: talk.mp4
+  transcript: talk.srt
+  music: chill
+  grade: warm                 # warm | cool | moody | bw | vivid, or your own .cube LUT
+scenes:
+  - aroll: ""
+    behind: "MỘT CÂU LỆNH"     # giant words behind the speaker (matted ~10 frames/s, cached)
+  - bullets: ["Dán kịch bản", "AI tự viết", "Bấm là chạy"]
+    title: "Chỉ *3 bước*"
+    at: "mình chỉ dán"
+    half: true                # speaker bottom half (right half in 16:9)
+  - aroll: "Theo dõi / *mình*"
+    at: "kho báu"
+    follow: "@lanhmar"
+    comment: "minh.anh|Lưu lại để làm thử"
+  - cta: Muốn *thử* không?
+    handle: lanhmar.id.vn
+    at: "muốn thử"

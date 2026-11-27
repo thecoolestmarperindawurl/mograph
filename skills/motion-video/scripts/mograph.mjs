@@ -60,6 +60,11 @@ function load(file) {
     for (const s of r.spec.scenes) for (const k of s.type === 'clip' ? ['clip', 'vo'] : s.type === 'manim' ? ['manim', 'vo'] : ['vo']) if (s[k]) { const p = path.resolve(dir, s[k]); if (!fs.existsSync(p)) r.errors.push(`file not found: ${s[k]}`); else s[k] = p; }
     res(r.spec.meta, 'mascot');
     for (const k of ['aroll', 'transcript']) if (r.spec.meta[k]) { r.spec.meta[k] = path.resolve(dir, r.spec.meta[k]); if (!fs.existsSync(r.spec.meta[k])) r.errors.push(`${k} not found: ${r.spec.meta[k]}`); }
+    // grade: meta.grade is the default for every clip scene; a .cube LUT path is relative to the spec
+    for (const o of [r.spec.meta, ...r.spec.scenes.filter(s => s.type === 'clip')]) {
+      if (o !== r.spec.meta && o.grade == null && r.spec.meta.grade) o.grade = r.spec.meta.grade;
+      if (/\.cube$/i.test(o.grade || '')) { const p = path.resolve(dir, o.grade); if (!fs.existsSync(p)) r.errors.push(`LUT not found: ${o.grade}`); else o.grade = p; }
+    }
     for (const s of r.spec.scenes) if (s.type === 'aroll' && s.image) res(s, 'image');
     if (r.spec.meta.audio) { r.spec.meta.audio = path.resolve(dir, r.spec.meta.audio); if (!fs.existsSync(r.spec.meta.audio)) r.errors.push(`audio not found: ${r.spec.meta.audio}`); }
   }
@@ -88,6 +93,33 @@ function prepMedia(r, fps, maxW) {
   if (sp.meta.aroll && !r.errors.length) try { prepAroll(ff, sp, fps, maxW, notes); } catch (e) { r.errors.push(e.message); }
   try { const v = prepVoices(ff, sp, r.dir); if (v) { r.voice = v; notes.push(...v.notes); } } catch (e) { r.errors.push(e.message); }
   r.warns.push(...notes);
+}
+// aroll `behind:` text: matte the speaker on every frame of that scene (cached) so the words sit behind them
+async function prepBehind(r, br) {
+  const sp = r.spec, A = sp.meta._aroll, jobs = [];
+  if (!A || r.errors.length) return;
+  sp.scenes.forEach((s, i) => {
+    if (s.type !== 'aroll' || !s.behind) return;
+    const fz = s.freeze != null && s.freeze !== false ? s._at + (s.freeze === true ? 0 : +s.freeze || 0) : null;
+    const k0 = Math.floor((fz ?? s._at) * A.fps), k1 = fz != null ? k0 : Math.ceil((s._at + s.dur) * A.fps);
+    // speed: light model by default (meta.cutout: person|quality for cleaner edges, ~25x slower), and a matte only
+    // every `step` frames (~10/s) that its neighbours reuse — words behind a speaker do not need per-frame edges
+    const step = Math.max(1, Math.round(A.fps / 10)), model = ['person', 'quality'].includes(sp.meta.cutout) ? sp.meta.cutout : 'fast';
+    s._cut = {}; s._cutKeys = [];
+    for (let k = Math.max(0, k0); k <= Math.min(A.frames.length - 1, k1); k++) {
+      const key = k0 + Math.round((k - k0) / step) * step, kk = Math.min(key, A.frames.length - 1, k1);
+      s._cutKeys.push([k, kk]);
+      if (!jobs.some(j => j.s === s && j.k === kk)) jobs.push({ id: `b${i}:${kk}`, src: fileURLToPath(A.frames[kk]), model, full: true, s, k: kk });
+    }
+  });
+  if (!jobs.length) return;
+  const t0 = Date.now();
+  console.error(`behind: matting ${jobs.length} frames of the speaker (${jobs[0].model} model, cached after the first run)…`);
+  try {
+    const done = await cutouts(br, ROOT, jobs), url = new Map(jobs.filter(j => done.has(j.id)).map(j => [j.id, pathToFileURL(done.get(j.id)).href]));
+    sp.scenes.forEach((s, i) => { for (const [k, kk] of s._cutKeys || []) if (url.has(`b${i}:${kk}`)) s._cut[k] = url.get(`b${i}:${kk}`); delete s._cutKeys; });
+    console.error(`behind: done in ${((Date.now() - t0) / 1000).toFixed(1)}s`);
+  } catch (e) { r.errors.push('behind: ' + e.message); }
 }
 // studio pack: cut out subjects (background removal, cached) and resolve 3D emoji stickers
 async function prepStudio(r, br) {
@@ -272,6 +304,7 @@ async function main() {
     await prepStudio(r, br);
     prepMedia(r, cmd === 'render' ? (draftR ? Math.min(15, r.spec.meta.fps) : r.spec.meta.fps) : 6, cmd === 'render' && !draftR ? 1280 : 640);
     if (cmd === 'lint') { const { info } = await stagePage(br, r.spec); process.exitCode = report(r, info) ? 0 : 1; return; }
+    await prepBehind(r, br);
 
     if (cmd === 'remix') {
       // rows = variants (look × seed), columns = scenes at their settled frame; one image to pick a direction from

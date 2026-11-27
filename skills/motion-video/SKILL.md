@@ -96,9 +96,20 @@ timeline — do not write `voice:` lines or invent a script.
    Read the transcript text once — it is the script. Fix misheard names in the .srt, not in the spec.
 3. `meta: { aroll: talk.cut.mp4, transcript: talk.srt, music: chill }` → the voice plays start to end, music ducks under it,
    captions come word-timed from the transcript, the video is exactly as long as the footage.
+   Colour: `meta.grade: warm | cool | moody | bw | vivid` grades the aroll and every `clip` (a `clip` can set its own `grade:`);
+   the user's own LUT works too: `grade: looks/film.cube`. Pick from the mood (warm = lifestyle/food, cool = tech, moody = story,
+   bw = quote/flashback, vivid = product/travel); leave it off for screen recordings.
 4. Scenes start at `at:` — a spoken phrase from the transcript (`at: "kho báu"`, preferred) or seconds. First scene starts at 0;
    a scene without `at` splits the gap evenly. Pattern from viral edits: `aroll` (face/screen, headline `num: 1`) → graphic
    scene with `pip: true` (footage stays as a round bubble) → back to `aroll` with `zoom: 1.15` (punch-in) → … → `cta`.
+   More talking-head moves (one or two per video each):
+   - `behind: "BIG WORD"` on an `aroll` scene: giant words sit BEHIND the speaker (matted ~10 frames/s, cached; first run
+     ≈2–4 s per matte with the default light model). Keep it ≤3 words, on a scene of ≤4 s. `meta.cutout: person` = cleaner
+     edges but ~25x slower — only if the user complains about the edges.
+   - `half: true` on any graphic scene: speaker fills the bottom half (right half in 16:9), the scene the other half —
+     b-roll / list / chart above, face below. Not with `pip`.
+   - `follow: "@handle"` (Follow pill gets tapped) and `comment: "user|text"` (Instagram comment, heart fills) on any scene —
+     a CTA moment or social proof. Use the user's real handle; never invent a comment and present it as real.
 5. Point at things in the footage: `marks: ["circle x y w h", "arrow x1 y1 x2 y2", "underline x y w", "text x y words"]`
    (on `aroll` scenes: percent of the FOOTAGE, so the same marks land right in 9:16 and 16:9; lint warns if one is cropped out; draw on like a pen). Keep `text` marks above y 72 (captions live below).
    Footage moves, so add `freeze: true` to that `aroll` scene (picture holds, voice continues), then aim with

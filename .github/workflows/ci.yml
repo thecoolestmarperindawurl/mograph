@@ -46,6 +46,8 @@ jobs:
         run: node skills/motion-video/scripts/mograph.mjs render examples/studio-reel.yaml --draft -o out-studio.mp4
       - name: "Render (A-roll: real footage + voice, transcript, marks)"
         run: node skills/motion-video/scripts/mograph.mjs render examples/aroll/aroll-talk.yaml --draft -o out-aroll.mp4
+      - name: "Render (talking head: grade, behind matte, half, follow/comment)"
+        run: node skills/motion-video/scripts/mograph.mjs render examples/aroll/aroll-social.yaml --draft --size 9:16 -o out-social.mp4
       - name: Jump cut
         timeout-minutes: 5
         run: node skills/motion-video/scripts/mograph.mjs jumpcut examples/aroll/talk.mp4 -o out-cut.mp4

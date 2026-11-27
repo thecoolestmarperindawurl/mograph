@@ -27,7 +27,7 @@ function ortDir() { return path.join(ensurePkg('onnxruntime-web', '1.31.1', 'ins
 export async function cutouts(br, root, jobs) {
   const todo = [], done = new Map(), dup = [];
   for (const j of jobs) {
-    const st = fs.statSync(j.src), key = crypto.createHash('sha1').update([j.src, st.size, st.mtimeMs, j.model, j.bw ? 1 : 0].join('|')).digest('hex').slice(0, 14);
+    const st = fs.statSync(j.src), key = crypto.createHash('sha1').update([j.src, st.size, st.mtimeMs, j.model, j.bw ? 1 : 0, j.full ? 'full' : ''].join('|')).digest('hex').slice(0, 14);
     const out = path.join(CACHE, 'cutout', key + '.png');
     if (fs.existsSync(out)) done.set(j.id, out); else if (todo.some(x => x.out === out)) dup.push({ id: j.id, out }); else todo.push({ ...j, out });
   }
@@ -56,7 +56,7 @@ export async function cutouts(br, root, jobs) {
       const m = MODELS[j.model] || MODELS.quality, img = '/img/' + j.id + path.extname(j.src);
       files.set(img, j.src);
       const t0 = Date.now();
-      const png = await page.evaluate(async ({ img, model, m, bw }) => {
+      const png = await page.evaluate(async ({ img, model, m, bw, full }) => {
         ort.env.wasm.numThreads = 1; ort.env.wasm.wasmPaths = '/ort/';
         window._s = window._s || {}; const sess = window._s[model] || (window._s[model] = await ort.InferenceSession.create(model));
         const im = new Image(); im.src = img; await im.decode();
@@ -74,18 +74,19 @@ export async function cutouts(br, root, jobs) {
         const out = new OffscreenCanvas(W, H), og = out.getContext('2d');
         og.drawImage(mc, 0, 0, W, H); og.globalCompositeOperation = 'source-in'; if (bw) og.filter = 'grayscale(1) contrast(1.12)'; og.drawImage(im, 0, 0);
         // trim to the subject's bounding box (+2% margin) so layouts can place it tightly
-        const a = og.getImageData(0, 0, W, H).data; let x0 = W, y0 = H, x1 = 0, y1 = 0;
-        for (let y = 0; y < H; y += 2) for (let x = 0; x < W; x += 2) if (a[(y * W + x) * 4 + 3] > 40) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
-        if (x1 <= x0) { x0 = 0; y0 = 0; x1 = W - 1; y1 = H - 1; }
+        const a = full ? null : og.getImageData(0, 0, W, H).data; let x0 = W, y0 = H, x1 = 0, y1 = 0;
+        if (!full) for (let y = 0; y < H; y += 2) for (let x = 0; x < W; x += 2) if (a[(y * W + x) * 4 + 3] > 40) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+        // full = keep the whole frame (video mattes must line up pixel-for-pixel with the footage)
+        if (x1 <= x0 || full) { x0 = 0; y0 = 0; x1 = W - 1; y1 = H - 1; }
         const mgn = Math.round(Math.max(W, H) * 0.02); x0 = Math.max(0, x0 - mgn); y0 = Math.max(0, y0 - mgn); x1 = Math.min(W - 1, x1 + mgn); y1 = Math.min(H - 1, y1 + mgn);
         const cr = new OffscreenCanvas(x1 - x0 + 1, y1 - y0 + 1); cr.getContext('2d').drawImage(out, -x0, -y0);
         const blob = await cr.convertToBlob({ type: 'image/png' }), buf = new Uint8Array(await blob.arrayBuffer());
         let s = ''; for (let i = 0; i < buf.length; i += 32768) s += String.fromCharCode.apply(null, buf.subarray(i, i + 32768));
         return btoa(s);
-      }, { img, model: '/model/' + m.file, m, bw: !!j.bw });
+      }, { img, model: '/model/' + m.file, m, bw: !!j.bw, full: !!j.full });
       fs.mkdirSync(path.dirname(j.out), { recursive: true });
       fs.writeFileSync(j.out, Buffer.from(png, 'base64'));
-      console.error(`cutout → ${path.basename(j.src)} (${j.model || 'quality'}, ${((Date.now() - t0) / 1000).toFixed(1)}s, cached)`);
+      if (!j.full) console.error(`cutout → ${path.basename(j.src)} (${j.model || 'quality'}, ${((Date.now() - t0) / 1000).toFixed(1)}s, cached)`);
       done.set(j.id, j.out);
     }
     await page.context().close();
